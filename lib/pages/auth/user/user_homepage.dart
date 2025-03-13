@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:libx_final/pages/auth/user/borrowed_books_page.dart';
 import 'package:libx_final/pages/auth/user/book_details_page.dart';
+import 'package:libx_final/pages/auth/user/user_root_app.dart';
 import 'package:libx_final/theme/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart'; // Add this import
@@ -40,8 +42,12 @@ class Book {
 class _UserHomepageState extends State<UserHomepage> {
   final _supabase = Supabase.instance.client;
   List<Book> availableBooks = [];
+  List<Map<String, dynamic>> borrowedBooks = [];
   bool isLoading = true;
   String? selectedCategory;
+  String? _userAvatarUrl;
+  int borrowedCount = 0;
+  int returnedCount = 0;
 
   final List<String> categories = [
     'Fiction',
@@ -140,6 +146,84 @@ class _UserHomepageState extends State<UserHomepage> {
   void initState() {
     super.initState();
     fetchBooks();
+    fetchUserProfile();
+    fetchBorrowedBooks();
+    fetchBorrowingStats();
+  }
+
+  // Add this method
+  Future<void> fetchBorrowingStats() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final borrowedResponse = await _supabase
+          .from('borrowed_books')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'borrowed');
+
+      final returnedResponse = await _supabase
+          .from('borrowed_books')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'returned');
+
+      if (mounted) {
+        setState(() {
+          borrowedCount = borrowedResponse.length;
+          returnedCount = returnedResponse.length;
+        });
+      }
+    } catch (error) {
+      print('Error fetching borrowing stats: $error');
+    }
+  }
+
+  // Add this method
+  Future<void> fetchBorrowedBooks() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('borrowed_books')
+          .select('*, books(*)')
+          .eq('user_id', userId)
+          .eq('status', 'borrowed')
+          .order('due_date', ascending: true)
+          .limit(4);
+
+      if (mounted && response != null) {
+        setState(() {
+          borrowedBooks = List<Map<String, dynamic>>.from(response);
+        });
+      }
+    } catch (error) {
+      print('Error fetching borrowed books: $error');
+    }
+  }
+
+  // Add this method
+  Future<void> fetchUserProfile() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userId)
+          .single();
+
+      if (mounted && response != null) {
+        setState(() {
+          _userAvatarUrl = response['avatar_url'];
+        });
+      }
+    } catch (error) {
+      print('Error fetching user profile: $error');
+    }
   }
 
   Future<void> fetchBooks() async {
@@ -192,7 +276,14 @@ class _UserHomepageState extends State<UserHomepage> {
     setState(() {
       isLoading = true;
     });
-    await fetchBooks();
+    await Future.wait([
+      fetchBooks(),
+      fetchBorrowedBooks(),
+      fetchBorrowingStats(),
+    ]);
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override
@@ -224,16 +315,25 @@ class _UserHomepageState extends State<UserHomepage> {
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(2),
+                            padding: const EdgeInsets.all(1),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
+                              border: Border.all(color: Colors.white, width: 1),
                             ),
-                            child: const CircleAvatar(
-                              radius: 24,
-                              backgroundImage:
-                                  AssetImage('assets/images/person_icon.png'),
+                            child: CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: _userAvatarUrl != null
+                                  ? NetworkImage(_userAvatarUrl!)
+                                  : null,
+                              child: _userAvatarUrl == null
+                                  ? Icon(
+                                      Icons.person_rounded,
+                                      size: 30,
+                                      color: secondary,
+                                    )
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -320,7 +420,7 @@ class _UserHomepageState extends State<UserHomepage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 15),
 
                   // Search Bar
                   Skeletonizer(
@@ -338,30 +438,76 @@ class _UserHomepageState extends State<UserHomepage> {
                           ),
                         ],
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              cursorColor: primary,
-                              decoration: InputDecoration(
-                                hintText: 'Search Books...',
-                                hintStyle: TextStyle(color: Colors.grey[400]),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                prefixIcon:
-                                    Icon(Icons.search, color: secondary),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+
+                  // Borrowing Statistics
+                  Skeletonizer(
+                    enabled: isLoading,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  borrowedCount.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: primary,
+                                  ),
+                                ),
+                                const Text(
+                                  'Currently\nBorrowed',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: secondary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  returnedCount.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: secondary,
+                                  ),
+                                ),
+                                const Text(
+                                  'Total\nReturned',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: secondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   // Top Available Books Section
                   Skeletonizer(
@@ -373,7 +519,7 @@ class _UserHomepageState extends State<UserHomepage> {
                   Skeletonizer(
                     enabled: isLoading,
                     child: SizedBox(
-                      height: 230,
+                      height: 200,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: availableBooks.length,
@@ -392,73 +538,20 @@ class _UserHomepageState extends State<UserHomepage> {
                               width: 140,
                               margin: const EdgeInsets.only(right: 16),
                               decoration: BoxDecoration(
-                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
+                                image: DecorationImage(
+                                  image: NetworkImage(book.coverUrl),
+                                  fit: BoxFit.cover,
+                                  onError: (exception, stackTrace) =>
+                                      const AssetImage(
+                                          'assets/images/book_placeholder.png'),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.grey.withOpacity(0.1),
                                     spreadRadius: 0,
                                     blurRadius: 10,
                                     offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(12),
-                                    ),
-                                    child: Image.network(
-                                      book.coverUrl,
-                                      height: 150,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Container(
-                                          height: 130,
-                                          color: Colors.grey[200],
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.book,
-                                              size: 40,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          book.title,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: primary,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          book.author,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
                                   ),
                                 ],
                               ),
@@ -504,86 +597,115 @@ class _UserHomepageState extends State<UserHomepage> {
                   // Recently Borrowed Books
                   Skeletonizer(
                     enabled: isLoading,
-                    child: _buildSectionHeader('Your Recently Borrowed Books',
-                        onViewAll: () {}),
+                    child: _buildSectionHeader(
+                      'Recently Borrowed Books',
+                      onViewAll: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BorrowedBooksPage(),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Skeletonizer(
                     enabled: isLoading,
                     child: SizedBox(
-                      height: 180,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 4,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            width: 140,
-                            margin: const EdgeInsets.only(right: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  spreadRadius: 0,
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 2),
+                      height: 160,
+                      child: borrowedBooks.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No borrowed books',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
                                 ),
-                              ],
-                            ),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    'https://marketplace.canva.com/EAFfSnGl7II/2/0/1003w/canva-elegant-dark-woods-fantasy-photo-book-cover-vAt8PH1CmqQ.jpg',
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.grey[200],
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.book,
-                                            size: 40,
-                                            color: Colors.grey,
+                              ),
+                            )
+                          : ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: borrowedBooks.length,
+                              itemBuilder: (context, index) {
+                                final borrowedBook = borrowedBooks[index];
+                                final book = borrowedBook['books'];
+                                final dueDate =
+                                    DateTime.parse(borrowedBook['due_date']);
+                                final daysLeft =
+                                    dueDate.difference(DateTime.now()).inDays;
+
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        spreadRadius: 0,
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          book['image_url'] ??
+                                              'https://via.placeholder.com/150',
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Container(
+                                              color: Colors.grey[200],
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.book,
+                                                  size: 40,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                            horizontal: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: daysLeft <= 1
+                                                ? Colors.red.withOpacity(0.8)
+                                                : primary.withOpacity(0.8),
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                              bottom: Radius.circular(12),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '$daysLeft Days Left',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                      horizontal: 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: primary.withOpacity(0.8),
-                                      borderRadius: const BorderRadius.vertical(
-                                        bottom: Radius.circular(12),
                                       ),
-                                    ),
-                                    child: Text(
-                                      '${3 + index} Days Left',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
                     ),
                   ),
                 ],

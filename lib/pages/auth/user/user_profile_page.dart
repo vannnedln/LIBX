@@ -63,7 +63,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
         child: _avatarUrl == null
             ? Icon(
-                Icons.person,
+                Icons.person_rounded,
                 size: 90,
                 color: Colors.grey[400],
               )

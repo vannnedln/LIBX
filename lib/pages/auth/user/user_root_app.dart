@@ -10,7 +10,10 @@ import 'package:libx_final/utils/role_checker_mixin.dart';
 
 class UserRootApp extends StatefulWidget {
   final String firstName;
-  const UserRootApp({super.key, required this.firstName});
+  const UserRootApp({
+    super.key,
+    required this.firstName,
+  });
 
   @override
   State<UserRootApp> createState() => _UserRootAppState();
@@ -35,7 +38,7 @@ class _UserRootAppState extends State<UserRootApp> with RoleCheckerMixin {
         child: getBody(),
       ),
       bottomNavigationBar: getFooter(),
-      floatingActionButton: pageIndex != 3
+      floatingActionButton: (pageIndex != 2 && pageIndex != 3)
           ? Padding(
               padding: const EdgeInsets.only(bottom: 15),
               child: SizedBox(
@@ -72,7 +75,7 @@ class _UserRootAppState extends State<UserRootApp> with RoleCheckerMixin {
       children: [
         UserHomepage(firstName: widget.firstName),
         const BorrowedBooksPage(),
-        Text('Book List'),
+        const FavoriteBooksPage(),
         const UserProfilePage(),
       ],
     );

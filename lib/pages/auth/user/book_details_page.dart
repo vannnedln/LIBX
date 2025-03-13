@@ -121,11 +121,9 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
 
     final userId = _userId!;
     final now = DateTime.now();
-    final dueDate =
-        now.add(const Duration(days: 14)); // 14 days borrowing period
+    final dueDate = now.add(const Duration(days: 3));
 
     try {
-      // First, check if the user already has this book borrowed or pending
       final existingBorrow = await _supabase
           .from('borrowed_books')
           .select()
@@ -374,15 +372,30 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(
-                              isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: isFavorite ? Colors.red : Colors.grey,
-                              size: 28,
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isFavorite ? secondary : Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  spreadRadius: 1,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            onPressed: _toggleFavorite,
+                            child: IconButton(
+                              icon: Icon(
+                                isFavorite
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                color: isFavorite ? Colors.white : Colors.grey,
+                                size: 28,
+                              ),
+                              onPressed: _toggleFavorite,
+                            ),
                           ),
                         ],
                       ),

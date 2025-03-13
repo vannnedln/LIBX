@@ -524,40 +524,36 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                       itemBuilder: (context, index) =>
                           _buildFavoriteBookCard(null),
                     )
-                  : _favoriteBooks.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.favorite_border_rounded,
-                                size: 80,
-                                color: Colors.grey[400],
+                  : _filteredBooks.isEmpty
+                      ? ListView(
+                          children: const [
+                            SizedBox(
+                              height: 150,
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'No books found',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No favorite books yet',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add books to your favorites to see them here',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[500],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(
-                              16, 16, 16, 80), // Added bottom padding
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                           itemCount: _filteredBooks.length,
                           itemBuilder: (context, index) {
                             final book = _filteredBooks[index];
@@ -579,7 +575,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'all':
-        return Icons.category_rounded;
+        return Icons.apps_rounded;
       case 'fiction':
         return Icons.auto_stories_rounded;
       case 'non-fiction':

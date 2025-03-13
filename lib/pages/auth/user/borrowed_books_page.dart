@@ -150,19 +150,28 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
       final shouldRequest = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Request Book Return'),
+          title: const Text(
+            'Request Book Return',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           content: const Text('Do you want to request to return this book?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: primary),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: secondary,
               ),
-              child: const Text('Request Return'),
+              child: const Text(
+                'Return',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -204,8 +213,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   }
 
   Widget _buildBookCard(BorrowedBook book) {
-    final daysRemaining = _getDaysRemaining(book.dueDate);
-    final isOverdue = book.dueDate.isBefore(DateTime.now());
+    final daysLeft = book.dueDate.difference(DateTime.now()).inDays;
 
     return Container(
       decoration: BoxDecoration(
@@ -220,20 +228,23 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
           // Book Cover Image
-          Expanded(
-            flex: 4,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
               ),
               child: Image.network(
                 book.coverUrl,
                 fit: BoxFit.cover,
                 width: double.infinity,
+                height: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: Colors.grey[200],
@@ -247,86 +258,68 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
               ),
             ),
           ),
-          // Book Details
-          Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    book.author,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isOverdue
-                          ? Colors.red.withOpacity(0.1)
-                          : accent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      daysRemaining,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isOverdue ? Colors.red : secondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          book.hasReturnRequest || book.status == 'returned'
-                              ? null
-                              : () => _returnBook(book.id, book.bookId),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            book.hasReturnRequest ? Colors.grey : secondary,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        book.hasReturnRequest
-                            ? 'Return Requested'
-                            : book.status == 'overdue'
-                                ? 'Request Return (Overdue)'
-                                : 'Request Return',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+          // Days Left Indicator
+          Positioned(
+            bottom: 45, // Space for the return button
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                vertical: 8,
+                horizontal: 12,
+              ),
+              decoration: BoxDecoration(
+                color: daysLeft <= 1
+                    ? Colors.red.withOpacity(0.8)
+                    : primary.withOpacity(0.8),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12),
+                ),
+              ),
+              child: Text(
+                '$daysLeft Days Left',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Return Button
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(16),
+                ),
+              ),
+              child: TextButton(
+                onPressed: book.hasReturnRequest
+                    ? null
+                    : () => _returnBook(book.id, book.bookId),
+                style: TextButton.styleFrom(
+                  backgroundColor:
+                      book.hasReturnRequest ? Colors.grey : secondary,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(16),
                     ),
                   ),
-                ],
+                ),
+                child: Text(
+                  book.hasReturnRequest ? 'Requested' : 'Return',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ),
@@ -450,9 +443,9 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.65,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.7,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
                             ),
                             itemCount: _filteredBooks.length,
                             itemBuilder: (context, index) {
