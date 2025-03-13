@@ -41,6 +41,100 @@ class _UserHomepageState extends State<UserHomepage> {
   final _supabase = Supabase.instance.client;
   List<Book> availableBooks = [];
   bool isLoading = true;
+  String? selectedCategory;
+
+  final List<String> categories = [
+    'Fiction',
+    'Non-Fiction',
+    'Science Fiction',
+    'Fantasy',
+    'Mystery',
+    'Thriller',
+    'Romance',
+    'Horror',
+    'Historical Fiction',
+    'Biography',
+    'Self-Help',
+    'Business',
+    'Technology',
+    'Science',
+    'Poetry',
+    'Drama',
+    'Children',
+    'Young Adult',
+    'Educational',
+    'Reference',
+  ];
+
+  final Map<String, Color> categoryColor = {
+    'Fiction': Colors.purple,
+    'Non-Fiction': Colors.green,
+    'Science Fiction': Colors.orange,
+    'Fantasy': Colors.red,
+    'Mystery': Colors.indigo,
+    'Thriller': Colors.deepOrange,
+    'Romance': Colors.pink,
+    'Horror': Colors.grey[850]!,
+    'Historical Fiction': Colors.brown,
+    'Biography': Colors.teal,
+    'Self-Help': Colors.cyan,
+    'Business': Colors.amber,
+    'Technology': Colors.lightBlue,
+    'Science': Colors.deepPurple,
+    'Poetry': Colors.purple[300]!,
+    'Drama': Colors.orange[800]!,
+    'Children': Colors.yellow[700]!,
+    'Young Adult': Colors.lightGreen,
+    'Educational': Colors.indigoAccent,
+    'Reference': Colors.blueGrey,
+  };
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'fiction':
+        return Icons.auto_stories_rounded;
+      case 'non-fiction':
+        return Icons.menu_book_rounded;
+      case 'science fiction':
+        return Icons.rocket_launch_rounded;
+      case 'fantasy':
+        return Icons.auto_fix_high_rounded;
+      case 'mystery':
+        return Icons.search_rounded;
+      case 'thriller':
+        return Icons.psychology_rounded;
+      case 'romance':
+        return Icons.favorite_rounded;
+      case 'horror':
+        return Icons.dark_mode_rounded;
+      case 'historical fiction':
+        return Icons.history_edu_rounded;
+      case 'biography':
+        return Icons.person_rounded;
+      case 'self-help':
+        return Icons.psychology_alt_rounded;
+      case 'business':
+        return Icons.business_center_rounded;
+      case 'technology':
+        return Icons.computer_rounded;
+      case 'science':
+        return Icons.science_rounded;
+      case 'poetry':
+        return Icons.format_quote_rounded;
+      case 'drama':
+        return Icons.theater_comedy_rounded;
+      case 'children':
+        return Icons.child_care_rounded;
+      case 'young adult':
+        return Icons.groups_rounded;
+      case 'educational':
+        return Icons.school_rounded;
+      case 'reference':
+        return Icons.library_books_rounded;
+      default:
+        return Icons.book_rounded;
+    }
+  }
 
   @override
   void initState() {
@@ -346,21 +440,18 @@ class _UserHomepageState extends State<UserHomepage> {
                                         Text(
                                           book.title,
                                           style: const TextStyle(
-                                            fontSize:
-                                                14, // Slightly reduced from 14
+                                            fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             color: primary,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(
-                                            height: 4), // Reduced from 4
+                                        const SizedBox(height: 4),
                                         Text(
                                           book.author,
                                           style: TextStyle(
-                                            fontSize:
-                                                12, // Slightly reduced from 12
+                                            fontSize: 12,
                                             color: Colors.grey[600],
                                           ),
                                           maxLines: 1,
@@ -391,30 +482,17 @@ class _UserHomepageState extends State<UserHomepage> {
                       height: 100,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: 5,
+                        itemCount: categories.length,
                         itemBuilder: (context, index) {
-                          final genres = [
-                            (
-                              'Biographies',
-                              Icons.person_outline,
-                              Colors.amberAccent
-                            ),
-                            ('Fiction', Icons.auto_stories, Colors.greenAccent),
-                            ('Engineering', Icons.engineering, Colors.blueGrey),
-                            ('History', Icons.history_edu, Colors.brown),
-                            (
-                              'Romance',
-                              Icons.favorite_outline,
-                              Colors.redAccent
-                            ),
-                          ];
+                          final category = categories[index];
+                          final color = categoryColor[category] ?? Colors.grey;
                           return Container(
                             width: 100,
                             margin: const EdgeInsets.only(right: 16),
                             child: _buildGenreCard(
-                              genres[index].$1,
-                              genres[index].$2,
-                              genres[index].$3,
+                              category,
+                              _getCategoryIcon(category),
+                              color,
                             ),
                           );
                         },
@@ -546,7 +624,6 @@ class _UserHomepageState extends State<UserHomepage> {
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Material(
         color: Colors.transparent,

@@ -67,7 +67,7 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(16.0), // Reduced padding
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -78,11 +78,12 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                             color: primary),
                         onPressed: () => Navigator.pop(context),
                       ),
-                      Center(
-                        child: const Text(
+                      const Expanded(
+                        // Wrapped with Expanded
+                        child: Text(
                           'Browse Books',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 24, // Reduced font size
                             fontWeight: FontWeight.bold,
                             color: primary,
                           ),
@@ -90,8 +91,10 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12), // Reduced spacing
+                  // Search bar container
                   Container(
+                    height: 60, // Increased height from 50 to 60
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -109,6 +112,10 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                         Expanded(
                           child: TextField(
                             decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, // Increased horizontal padding
+                                vertical: 12, // Increased vertical padding
+                              ),
                               hintText: 'Search books...',
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               prefixIcon: Icon(Icons.search, color: secondary),
@@ -119,91 +126,6 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                               filled: true,
                               fillColor: Colors.white,
                             ),
-                          ),
-                        ),
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: secondary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.filter_list),
-                            color: secondary,
-                            onPressed: () {
-                              // Filter dialog implementation remains the same
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    // Dialog content remains the same
-                                    title: const Row(
-                                      children: [
-                                        Icon(Icons.filter_list,
-                                            color: secondary),
-                                        SizedBox(width: 10),
-                                        Text('Filter Books'),
-                                      ],
-                                    ),
-                                    content: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          // Genre Filter
-                                          const TextField(
-                                            decoration: InputDecoration(
-                                              labelText: 'Genre',
-                                              prefixIcon: Icon(Icons.category),
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          // Language Filter
-                                          const TextField(
-                                            decoration: InputDecoration(
-                                              labelText: 'Language',
-                                              prefixIcon: Icon(Icons.language),
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          // Availability Filter
-                                          CheckboxListTile(
-                                            title: const Text(
-                                                'Show only available books'),
-                                            value: false,
-                                            onChanged: (bool? value) {},
-                                          ),
-                                          // Rating Filter
-                                          const Text('Minimum Rating'),
-                                          Slider(
-                                            value: 0,
-                                            min: 0,
-                                            max: 5,
-                                            divisions: 5,
-                                            label: '0.0',
-                                            onChanged: (double value) {},
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Reset'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: secondary,
-                                        ),
-                                        child: const Text('Apply'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
                           ),
                         ),
                       ],
@@ -219,13 +141,16 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                   : books.isEmpty
                       ? const Center(child: Text('No books available'))
                       : GridView.builder(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4, // Reduced from 8
+                          ),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 0.65,
+                            childAspectRatio: 0.40,
                             crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
+                            mainAxisSpacing: 12, // Reduced from 16
                           ),
                           itemCount: books.length,
                           itemBuilder: (context, index) {
