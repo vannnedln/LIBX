@@ -100,6 +100,93 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
     }
   }
 
+  Future<void> _requestBorrow() async {
+    if (_userId == null || !mounted) return;
+
+    // Check if book is available
+    if (widget.book.quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              const Text('This book is currently unavailable for borrowing'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final userId = _userId!;
+    final now = DateTime.now();
+    final dueDate =
+        now.add(const Duration(days: 14)); // 14 days borrowing period
+
+    try {
+      // First, check if the user already has this book borrowed or pending
+      final existingBorrow = await _supabase
+          .from('borrowed_books')
+          .select()
+          .eq('user_id', userId)
+          .eq('book_id', widget.book.id)
+          .or('status.eq.borrowed,status.eq.pending')
+          .maybeSingle();
+
+      if (existingBorrow != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(existingBorrow['status'] == 'pending'
+                ? 'You already have a pending request for this book'
+                : 'You already have this book borrowed'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Insert new borrow request
+      await _supabase.from('borrowed_books').insert({
+        'book_id': widget.book.id,
+        'user_id': userId,
+        'borrow_date': now.toIso8601String(),
+        'due_date': dueDate.toIso8601String(),
+        'status': 'pending', // New status for pending requests
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Borrow request for "${widget.book.title}" sent successfully'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error requesting book: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     // Add any cleanup here if needed
@@ -378,8 +465,79 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            // Dialog content remains the same
-                                            // ...
+                                            const Icon(
+                                              Icons.book_outlined,
+                                              color: secondary,
+                                              size: 48,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Borrow "${widget.book.title}"?',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: primary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'You will be able to borrow this book for 14 days. Do you want to proceed?',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: const Text(
+                                                    'Cancel',
+                                                    style: TextStyle(
+                                                      color: Colors.grey,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () {
+                                                    _requestBorrow();
+                                                    Navigator.pop(context);
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor: secondary,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                    ),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 24,
+                                                      vertical: 12,
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Confirm',
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -443,7 +601,8 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
                                 // Add cart functionality here
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Added to borrow book list'),
+                                    content: Text(
+                                        'This feature will be available soon'),
                                     duration: Duration(seconds: 2),
                                   ),
                                 );
@@ -465,7 +624,6 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
 }
 
 // DescriptionText class remains the same
-
 class DescriptionText extends StatefulWidget {
   final String text;
   final TextStyle? textStyle;
