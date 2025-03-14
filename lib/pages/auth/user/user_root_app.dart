@@ -38,7 +38,7 @@ class _UserRootAppState extends State<UserRootApp> with RoleCheckerMixin {
         child: getBody(),
       ),
       bottomNavigationBar: getFooter(),
-      floatingActionButton: (pageIndex != 2 && pageIndex != 3)
+      floatingActionButton: pageIndex != 3
           ? Padding(
               padding: const EdgeInsets.only(bottom: 15),
               child: SizedBox(
@@ -100,7 +100,7 @@ class _UserRootAppState extends State<UserRootApp> with RoleCheckerMixin {
         color: Colors.white,
       ),
       ImageIcon(
-        const AssetImage('assets/images/list_icon.png'),
+        const AssetImage('assets/images/heart_icon.png'),
         size: 25,
         color: Colors.white,
       ),

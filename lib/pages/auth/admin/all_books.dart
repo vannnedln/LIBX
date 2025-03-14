@@ -507,7 +507,7 @@ class AllBooksState extends State<AllBooks> {
                           itemBuilder: (context, index) => Padding(
                             padding: const EdgeInsets.only(bottom: 15),
                             child: Container(
-                              height: 120,
+                              height: 150, // Increased from 120
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(15),
@@ -569,7 +569,7 @@ class AllBooksState extends State<AllBooks> {
                             key: Key(book['id'].toString()),
                             direction: DismissDirection.endToStart,
                             background: Container(
-                              height: 120,
+                              height: 150,
                               margin: const EdgeInsets.only(bottom: 25),
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20.0),
@@ -624,7 +624,7 @@ class AllBooksState extends State<AllBooks> {
                                   clipBehavior: Clip.none,
                                   children: [
                                     Container(
-                                      height: 120,
+                                      height: 140,
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(15),
@@ -720,7 +720,7 @@ class AllBooksState extends State<AllBooks> {
                                     ),
                                     Positioned(
                                       left: 15,
-                                      top: -15,
+                                      top: 10,
                                       child: Container(
                                         width: 85,
                                         height: 120,

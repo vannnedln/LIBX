@@ -29,28 +29,43 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   @override
   void initState() {
     super.initState();
+    // Set initial states
+    _selectedStatus = 'pending';
+    _showRequestTypes = true;
+    _requestType = 'borrow';
     _loadBorrowedBooks();
   }
 
+  @override
+  void dispose() {
+    // Cancel any pending operations
+    _isLoading = false;
+    _borrowedBooks = [];
+    super.dispose();
+  }
+
   Future<void> _loadBorrowedBooks() async {
+    if (!mounted) return;
+
     try {
-      // If we're in pending status and have a specific request type
+      setState(() => _isLoading = true);
+
       if (_selectedStatus == 'pending' && _showRequestTypes) {
         if (_requestType == 'borrow') {
-          // Load borrow requests
           final response =
               await Supabase.instance.client.from('borrowed_books').select('''
                 *,
-                profiles (
-                  full_name,
-                  avatar_url
-                ),
                 books (
                   id,
                   title,
                   author,
                   genre,
-                  year
+                  year,
+                  cover_url
+                ),
+                profiles:user_id (
+                  full_name,
+                  avatar_url
                 )
               ''').eq('status', 'pending').order('due_date');
 
@@ -60,24 +75,23 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
             _isLoading = false;
           });
         } else {
-          // Load return requests
           await _loadReturnRequests();
         }
       } else {
-        // Original query for other statuses
         final response =
             await Supabase.instance.client.from('borrowed_books').select('''
               *,
-              profiles (
-                full_name,
-                avatar_url
-              ),
               books (
                 id,
                 title,
                 author,
                 genre,
-                year
+                year,
+                cover_url
+              ),
+              profiles:user_id (
+                full_name,
+                avatar_url
               )
             ''').eq('status', _selectedStatus).order('due_date');
 
@@ -94,32 +108,32 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
     }
   }
 
-  // Add a dedicated method to load return requests
   Future<void> _loadReturnRequests() async {
     try {
       final response =
           await Supabase.instance.client.from('return_requests').select('''
-        *,
-        borrowed_books!inner (
-          id,
-          user_id,
-          book_id,
-          borrow_date,
-          due_date,
-          status,
-          profiles:user_id (
-            full_name,
-            avatar_url
-          )
-        ),
-        books:book_id (
-          id,
-          title,
-          author,
-          genre,
-          year
-        )
-      ''').eq('status', 'pending').order('request_date');
+            *,
+            borrowed_books!inner (
+              id,
+              user_id,
+              book_id,
+              borrow_date,
+              due_date,
+              status,
+              books (
+                id,
+                title,
+                author,
+                genre,
+                year,
+                cover_url
+              ),
+              profiles:user_id (
+                full_name,
+                avatar_url
+              )
+            )
+          ''').eq('status', 'pending').order('request_date');
 
       if (!mounted) return;
       setState(() {
@@ -252,66 +266,74 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                   color: secondary,
                 ),
                 filled: true,
-                fillColor: Colors.grey[200],
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(15),
                   borderSide: BorderSide.none,
                 ),
               ),
             ),
           ),
           Container(
-            margin: EdgeInsets.fromLTRB(16, 8, 16, _showRequestTypes ? 0 : 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildFilterButton('pending', 'Requests'),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildFilterButton('borrowed', 'Current'),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildFilterButton('returned', 'Returned'),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildFilterButton('overdue', 'Overdue'),
-                ),
-              ],
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildFilterButton(
+                    'pending',
+                    'Requests',
+                    Icons.pending_actions_rounded,
+                  ),
+                  const SizedBox(width: 16), // Added spacing
+                  _buildFilterButton(
+                    'borrowed',
+                    'Current',
+                    Icons.book_rounded,
+                  ),
+                  const SizedBox(width: 16), // Added spacing
+                  _buildFilterButton(
+                    'returned',
+                    'Returned',
+                    Icons.assignment_return_rounded,
+                  ),
+                  const SizedBox(width: 16), // Added spacing
+                  _buildFilterButton(
+                    'overdue',
+                    'Overdue',
+                    Icons.warning_rounded,
+                  ),
+                ],
+              ),
             ),
           ),
-
-          // Sub-category filter for request types (only visible when 'Requests' is selected)
+          const SizedBox(
+            height: 20,
+          ),
           if (_showRequestTypes)
             Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 0,
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
                     child: _buildRequestTypeButton('borrow', 'Borrow Requests'),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8), // Reduced spacing
                   Expanded(
                     child: _buildRequestTypeButton('return', 'Return Requests'),
                   ),
@@ -339,20 +361,27 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
     );
   }
 
-  Widget _buildFilterButton(String status, String label) {
+  Widget _buildFilterButton(String status, String label, IconData icon) {
     final isSelected = _selectedStatus == status;
+
+    final Color statusColor = {
+          'pending': Colors.orange[500],
+          'borrowed': Colors.blue[500],
+          'returned': Colors.green[500],
+          'overdue': Colors.red[500],
+        }[status] ??
+        secondary;
+
     return SizedBox(
-      height: 40,
+      width: 65, // Reduced width
+      height: 65, // Reduced height
       child: ElevatedButton(
         onPressed: () {
+          if (!mounted) return;
           setState(() {
             _selectedStatus = status;
             _isLoading = true;
-
-            // Show request type filters only when 'pending' is selected
             _showRequestTypes = (status == 'pending');
-
-            // If we're switching to pending, set default request type to 'borrow'
             if (status == 'pending') {
               _requestType = 'borrow';
             }
@@ -360,24 +389,43 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           _loadBorrowedBooks();
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? secondary : Colors.grey[100],
-          foregroundColor: isSelected ? Colors.white : Colors.grey[800],
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          backgroundColor: isSelected
+              ? statusColor
+              : Colors.transparent, // Changed to transparent
+          foregroundColor:
+              isSelected ? Colors.white : statusColor, // Changed text color
+          elevation: 0, // Removed elevation
+          padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: isSelected ? secondary : Colors.grey[300]!,
-              width: 1,
+              color: isSelected
+                  ? statusColor
+                  : statusColor
+                      .withOpacity(0.3), // Made border semi-transparent
+              width: 1.5,
             ),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 24, // Reduced icon size
+              color: isSelected ? Colors.white : statusColor,
+            ),
+            const SizedBox(height: 4), // Reduced spacing
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11, // Reduced font size
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : statusColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
@@ -431,10 +479,16 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
     final isPending = isBorrowRequest || isReturnRequest;
 
     // Get the appropriate book and user data based on request type
-    final bookData = book?['books'];
-    final userData = book?['profiles'];
-    final borrowId =
-        isReturnRequest ? (book?['borrow_id'] ?? book?['id']) : book?['id'];
+    final bookData =
+        isReturnRequest ? book?['borrowed_books']?['books'] : book?['books'];
+
+    final userData = isReturnRequest
+        ? book?['borrowed_books']?['profiles']
+        : book?['profiles'];
+
+    final borrowId = isReturnRequest
+        ? (book?['borrow_id'] ?? book?['borrowed_books']?['id'])
+        : book?['id'];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -614,19 +668,22 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // User Avatar and Book Details content
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: book != null &&
-                        book['profiles'] != null &&
-                        book['profiles']['avatar_url'] != null
-                    ? NetworkImage(book['profiles']['avatar_url'])
-                    : null,
-                child: book == null ||
-                        book['profiles'] == null ||
-                        book['profiles']['avatar_url'] == null
-                    ? const Icon(Icons.person, size: 35, color: Colors.grey)
+              // Book Cover Image
+              Container(
+                width: 60,
+                height: 80,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: bookData?['cover_url'] != null
+                      ? DecorationImage(
+                          image: NetworkImage(bookData['cover_url']),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  color: Colors.grey[200],
+                ),
+                child: bookData?['cover_url'] == null
+                    ? const Icon(Icons.book, size: 30, color: Colors.grey)
                     : null,
               ),
               const SizedBox(width: 16),
@@ -635,9 +692,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      book != null && book['books'] != null
-                          ? book['books']['title'] ?? 'Book Title'
-                          : 'Book Title',
+                      bookData?['title'] ?? 'Book Title',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -645,20 +700,17 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      book != null && book['books'] != null
-                          ? 'By ${book['books']['author'] ?? 'Unknown Author'}'
-                          : 'By Unknown Author',
+                      'By ${bookData?['author'] ?? 'Unknown Author'}',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey[600],
                         fontStyle: FontStyle.italic,
                       ),
                     ),
+
                     const SizedBox(height: 4),
                     Text(
-                      book != null && book['profiles'] != null
-                          ? 'Borrowed by: ${book['profiles']['full_name'] ?? 'User Name'}'
-                          : 'Borrowed by: User Name',
+                      'Borrowed by: ${userData?['full_name'] ?? 'User Name'}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
