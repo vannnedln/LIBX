@@ -177,22 +177,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  @override
-  void dispose() {
-    // Cancel any pending operations
-    _isLoading = false;
-    super.dispose();
-  }
-
   Future<void> _loadDashboardData() async {
-<<<<<<< HEAD
     if (!mounted) return;
-=======
-    if (!mounted) return; // Add this check at the start
->>>>>>> 35211c29b7affcf144888a85fce619cb64a414e3
 
     try {
-      if (!mounted) return; // Check mounted before setState
       setState(() {
         _isLoading = true;
         _errorMessage = '';
@@ -203,8 +191,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .from('books')
           .select('genre')
           .not('genre', 'is', null);
-
-      if (!mounted) return; // Check mounted after async operation
 
       // Count genres
       final genreCounts = <String, int>{};
@@ -228,16 +214,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .select('borrow_date')
           .gte('borrow_date', sevenDaysAgo.toIso8601String());
 
-      if (!mounted) return; // Check mounted after async operation
-
       final returnedResponse = await Supabase.instance.client
           .from('borrowed_books')
           .select('return_date')
           .eq('status', 'returned')
           .not('return_date', 'is', null)
           .gte('return_date', sevenDaysAgo.toIso8601String());
-
-      if (!mounted) return; // Check mounted after async operation
 
       // Process borrowed books data
       final Map<DateTime, int> newBorrowedData = {};
@@ -257,20 +239,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         }
       }
 
-<<<<<<< HEAD
-      if (_mounted) {
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      print('Error loading dashboard data: $e');
-      if (_mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to load dashboard data. Please try again.';
-        });
-      }
-=======
-      if (!mounted) return; // Final mounted check before setState
+      if (!mounted) return;
       setState(() {
         _genreData = newGenreData;
         _borrowedData = newBorrowedData;
@@ -279,12 +248,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       });
     } catch (e) {
       print('Error loading dashboard data: $e');
-      if (!mounted) return; // Check mounted before error setState
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to load dashboard data. Please try again.';
       });
->>>>>>> 35211c29b7affcf144888a85fce619cb64a414e3
     }
   }
 
