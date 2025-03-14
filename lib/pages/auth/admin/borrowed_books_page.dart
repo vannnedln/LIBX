@@ -50,7 +50,34 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
     try {
       setState(() => _isLoading = true);
 
-      if (_selectedStatus == 'pending' && _showRequestTypes) {
+      if (_selectedStatus == 'overdue') {
+        final response = await Supabase.instance.client
+            .from('borrowed_books')
+            .select('''
+              *,
+              books (
+                id,
+                title,
+                author,
+                genre,
+                year,
+                image_url
+              ),
+              profiles:user_id (
+                full_name,
+                avatar_url
+              )
+            ''')
+            .eq('status', 'borrowed')
+            .lt('due_date', DateTime.now().toIso8601String())
+            .order('due_date');
+
+        if (!mounted) return;
+        setState(() {
+          _borrowedBooks = List<Map<String, dynamic>>.from(response);
+          _isLoading = false;
+        });
+      } else if (_selectedStatus == 'pending' && _showRequestTypes) {
         if (_requestType == 'borrow') {
           final response =
               await Supabase.instance.client.from('borrowed_books').select('''
@@ -78,8 +105,9 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           await _loadReturnRequests();
         }
       } else {
-        final response =
-            await Supabase.instance.client.from('borrowed_books').select('''
+        final response = await Supabase.instance.client
+            .from('borrowed_books')
+            .select('''
               *,
               books (
                 id,
@@ -93,7 +121,11 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                 full_name,
                 avatar_url
               )
-            ''').eq('status', _selectedStatus).order('due_date');
+            ''')
+            .eq('status', _selectedStatus)
+            .gt('due_date',
+                DateTime.now().toIso8601String()) // Only show non-overdue books
+            .order('due_date');
 
         if (!mounted) return;
         setState(() {
@@ -157,29 +189,21 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   Future<void> _loadReturnedBooks() async {
     try {
       final response =
-          await Supabase.instance.client.from('return_requests').select('''
+          await Supabase.instance.client.from('borrowed_books').select('''
         *,
-        borrowed_books!inner (
-          id,
-          user_id,
-          book_id,
-          borrow_date,
-          due_date,
-          return_date,
-          status,
-          profiles:user_id (
-            full_name,
-            avatar_url
-          )
-        ),
-        books:book_id (
+        books (
           id,
           title,
           author,
           genre,
-          year
+          year,
+          image_url
+        ),
+        profiles:user_id (
+          full_name,
+          avatar_url
         )
-      ''').eq('status', 'approved').order('request_date', ascending: false);
+      ''').eq('status', 'returned').order('return_date', ascending: false);
 
       if (!mounted) return;
       setState(() {
@@ -230,133 +254,142 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
         backgroundColor: secondary,
         elevation: 4,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 5),
-            child: TextField(
-              onChanged: (query) {
-                setState(() {
-                  _borrowedBooks = _borrowedBooks
-                      .where((book) =>
-                          book['books']['title']
-                              .toString()
-                              .toLowerCase()
-                              .contains(query.toLowerCase()) ||
-                          book['books']['author']
-                              .toString()
-                              .toLowerCase()
-                              .contains(query.toLowerCase()) ||
-                          book['status']
-                              .toString()
-                              .toLowerCase()
-                              .contains(query.toLowerCase()) ||
-                          book['profiles']['full_name']
-                              .toString()
-                              .toLowerCase()
-                              .contains(query.toLowerCase()))
-                      .toList();
-                });
-              },
-              cursorColor: primary,
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: secondary,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildFilterButton(
-                    'pending',
-                    'Requests',
-                    Icons.pending_actions_rounded,
-                  ),
-                  const SizedBox(width: 16), // Added spacing
-                  _buildFilterButton(
-                    'borrowed',
-                    'Current',
-                    Icons.book_rounded,
-                  ),
-                  const SizedBox(width: 16), // Added spacing
-                  _buildFilterButton(
-                    'returned',
-                    'Returned',
-                    Icons.assignment_return_rounded,
-                  ),
-                  const SizedBox(width: 16), // Added spacing
-                  _buildFilterButton(
-                    'overdue',
-                    'Overdue',
-                    Icons.warning_rounded,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(
-            height: 20,
-          ),
-          if (_showRequestTypes)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 0,
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildRequestTypeButton('borrow', 'Borrow Requests'),
-                  ),
-                  const SizedBox(width: 8), // Reduced spacing
-                  Expanded(
-                    child: _buildRequestTypeButton('return', 'Return Requests'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: Skeletonizer(
-              enabled: _isLoading,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _isLoading ? 3 : _borrowedBooks.length,
-                itemBuilder: (context, index) {
-                  if (_isLoading) {
-                    return _buildBorrowedBookCard(null);
-                  }
-                  final book = _borrowedBooks[index];
-                  return _buildBorrowedBookCard(book);
+      body: RefreshIndicator(
+        backgroundColor: Colors.white,
+        onRefresh: () async {
+          await _loadBorrowedBooks();
+        },
+        color: primary,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 5),
+              child: TextField(
+                enabled: !_isLoading,
+                onChanged: (query) {
+                  setState(() {
+                    _borrowedBooks = _borrowedBooks
+                        .where((book) =>
+                            book['books']['title']
+                                .toString()
+                                .toLowerCase()
+                                .contains(query.toLowerCase()) ||
+                            book['books']['author']
+                                .toString()
+                                .toLowerCase()
+                                .contains(query.toLowerCase()) ||
+                            book['status']
+                                .toString()
+                                .toLowerCase()
+                                .contains(query.toLowerCase()) ||
+                            book['profiles']['full_name']
+                                .toString()
+                                .toLowerCase()
+                                .contains(query.toLowerCase()))
+                        .toList();
+                  });
                 },
+                cursorColor: primary,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: secondary,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFilterButton(
+                      'pending',
+                      'Requests',
+                      Icons.pending_actions_rounded,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildFilterButton(
+                      'borrowed',
+                      'Current',
+                      Icons.book_rounded,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildFilterButton(
+                      'returned',
+                      'Returned',
+                      Icons.assignment_return_rounded,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildFilterButton(
+                      'overdue',
+                      'Overdue',
+                      Icons.warning_rounded,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_showRequestTypes)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0,
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child:
+                          _buildRequestTypeButton('borrow', 'Borrow Requests'),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child:
+                          _buildRequestTypeButton('return', 'Return Requests'),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: Skeletonizer(
+                enabled: _isLoading,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _isLoading ? 3 : _borrowedBooks.length,
+                  itemBuilder: (context, index) {
+                    if (_isLoading) {
+                      return _buildBorrowedBookCard(null);
+                    }
+                    final book = _borrowedBooks[index];
+                    return _buildBorrowedBookCard(book);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -553,7 +586,9 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                         ? Colors.orange.withOpacity(0.1)
                         : isReturnRequest
                             ? Colors.blue.withOpacity(0.1)
-                            : secondary.withOpacity(0.1),
+                            : _selectedStatus == 'overdue'
+                                ? Colors.red.withOpacity(0.1)
+                                : secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -561,16 +596,23 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                         ? 'Borrow Request'
                         : isReturnRequest
                             ? 'Return Request'
-                            : (book != null
-                                ? _getDaysLeft(book['due_date'])
-                                : '7 days left'),
+                            : (_selectedStatus == 'returned' && book != null)
+                                ? 'Returned: ${_formatDate(book['return_date'])}'
+                                : (_selectedStatus == 'borrowed' &&
+                                        book != null)
+                                    ? 'Currently Borrowed'
+                                    : (book != null
+                                        ? _getDaysLeft(book['due_date'])
+                                        : '7 days left'),
                     style: TextStyle(
                       fontSize: 12,
                       color: isBorrowRequest
                           ? Colors.orange
                           : isReturnRequest
                               ? Colors.blue
-                              : secondary,
+                              : _selectedStatus == 'overdue'
+                                  ? Colors.red
+                                  : secondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -614,9 +656,12 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                 return await showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Reject Borrow Request'), // Updated title
-                    content: const Text(
-                        'Are you sure you want to reject this borrow request?'), // Updated content
+                    title: Text(isReturnRequest
+                        ? 'Reject Return Request'
+                        : 'Reject Borrow Request'),
+                    content: Text(isReturnRequest
+                        ? 'Are you sure you want to reject this return request?'
+                        : 'Are you sure you want to reject this borrow request?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -624,7 +669,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Reject'), // Updated button text
+                        child: const Text('Reject'),
                       ),
                     ],
                   ),
@@ -634,9 +679,12 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                 return await showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Accept Borrow Request'),
-                    content: const Text(
-                        'Are you sure you want to accept this borrow request?'),
+                    title: Text(isReturnRequest
+                        ? 'Accept Return Request'
+                        : 'Accept Borrow Request'),
+                    content: Text(isReturnRequest
+                        ? 'Are you sure you want to accept this return request?'
+                        : 'Are you sure you want to accept this borrow request?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -661,7 +709,8 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                   _rejectReturnRequest(book['id']);
                 } else if (direction == DismissDirection.endToStart) {
                   // Accept return request
-                  _approveReturnRequest(book['id'], book['borrowed_books']['id']);
+                  _approveReturnRequest(
+                      book['id'], book['borrowed_books']['id']);
                 }
               } else {
                 if (direction == DismissDirection.startToEnd) {
@@ -674,17 +723,23 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
               }
             }
           },
-          background: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(left: 20.0),
-            color: Colors.red,
-            child: const Icon(Icons.close, color: Colors.white),
+          background: ClipRRect(
+            borderRadius: BorderRadius.circular(12.0),
+            child: Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(left: 20.0),
+              color: Colors.red,
+              child: const Icon(Icons.close, color: Colors.white),
+            ),
           ),
-          secondaryBackground: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20.0),
-            color: Colors.green,
-            child: const Icon(Icons.check, color: Colors.white),
+          secondaryBackground: ClipRRect(
+            borderRadius: BorderRadius.circular(12.0),
+            child: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20.0),
+              color: Colors.green,
+              child: const Icon(Icons.check, color: Colors.white),
+            ),
           ),
           child: cardContent,
         ),

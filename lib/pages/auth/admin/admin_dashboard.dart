@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:libx_final/theme/colors.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -43,9 +44,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       final response = await Supabase.instance.client
           .from('profiles')
-          .select('avatar_url, first_name, role')
+          .select()
           .eq('id', userId)
-          .eq('role', 'admin')
           .single();
 
       if (!mounted) return;
@@ -77,103 +77,112 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: secondary,
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage.isNotEmpty
-              ? Center(
+      body: _errorMessage.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadDashboardData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : Skeletonizer(
+              enabled: _isLoading,
+              effect: ShimmerEffect(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+              ),
+              ignoreContainers: true,
+              containersColor: Colors.transparent,
+              child: RefreshIndicator(
+                onRefresh: _loadDashboardData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _errorMessage,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
+                      // Profile card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: secondary,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 1),
+                              ),
+                              child: CircleAvatar(
+                                radius: 26,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: _userAvatarUrl != null &&
+                                        _userAvatarUrl!.isNotEmpty
+                                    ? NetworkImage(_userAvatarUrl!)
+                                    : null,
+                                child: _userAvatarUrl == null ||
+                                        _userAvatarUrl!.isEmpty
+                                    ? Icon(
+                                        Icons.person_rounded,
+                                        size: 30,
+                                        color: secondary,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Welcome back,',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  _firstName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadDashboardData,
-                        child: const Text('Retry'),
+                      const SizedBox(height: 10),
+                      _buildStatSummary(),
+                      const SizedBox(height: 10),
+                      _buildGenreChart(),
+                      const SizedBox(height: 10),
+                      _buildBorrowReturnChart(),
+                      const SizedBox(
+                        height: 80,
                       ),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadDashboardData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Add the profile card here
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: secondary,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(1),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 1),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 26,
-                                  backgroundColor: Colors.grey[200],
-                                  backgroundImage: _userAvatarUrl != null
-                                      ? NetworkImage(_userAvatarUrl!)
-                                      : null,
-                                  child: _userAvatarUrl == null
-                                      ? Icon(
-                                          Icons.person_rounded,
-                                          size: 30,
-                                          color: secondary,
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Welcome back,',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  Text(
-                                    _firstName,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _buildStatSummary(),
-                        const SizedBox(height: 10),
-                        _buildGenreChart(),
-                        const SizedBox(height: 10),
-                        _buildBorrowReturnChart(),
-                        const SizedBox(
-                          height: 80,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
+              ),
+            ),
     );
   }
 
