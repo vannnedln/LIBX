@@ -46,6 +46,7 @@ dependencies:
   animations: ^2.0.8
   timeago: ^3.6.0
   intl: ^0.18.0
+  fl_chart: ^0.70.2
   
 
 dev_dependencies:
