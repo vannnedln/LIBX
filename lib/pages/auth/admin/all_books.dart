@@ -31,7 +31,7 @@ class AllBooksState extends State<AllBooks> {
     'Thriller',
     'Romance',
     'Horror',
-    'Historical Fiction',
+    'History',
     'Biography',
     'Self-Help',
     'Business',
@@ -57,7 +57,7 @@ class AllBooksState extends State<AllBooks> {
     'Thriller': Colors.deepOrange,
     'Romance': Colors.pink,
     'Horror': Colors.grey[850]!,
-    'Historical Fiction': Colors.brown,
+    'History': Colors.brown,
     'Biography': Colors.teal,
     'Self-Help': Colors.cyan,
     'Business': Colors.amber,
@@ -817,7 +817,7 @@ IconData _getCategoryIcon(String category) {
       return Icons.favorite_rounded;
     case 'horror':
       return Icons.dark_mode_rounded;
-    case 'historical fiction':
+    case 'history':
       return Icons.history_edu_rounded;
     case 'biography':
       return Icons.person_rounded;

@@ -495,7 +495,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
                                             ),
                                             const SizedBox(height: 16),
                                             Text(
-                                              'You will be able to borrow this book for 14 days. Do you want to proceed?',
+                                              'You will be able to borrow this book for 3 days. Do you want to proceed?',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 fontSize: 14,
@@ -585,41 +585,6 @@ class _BookDetailsPageState extends State<BookDetailsPage> {
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          // Cart button
-                          Container(
-                            height: 55,
-                            width: 55,
-                            decoration: BoxDecoration(
-                              color: secondary,
-                              borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.shopping_cart_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                // Add cart functionality here
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'This feature will be available soon'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
                             ),
                           ),
                         ],

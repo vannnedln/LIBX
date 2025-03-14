@@ -31,7 +31,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
     'Thriller',
     'Romance',
     'Horror',
-    'Historical Fiction',
+    'History',
     'Biography',
     'Self-Help',
     'Business',
@@ -55,7 +55,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
     'Thriller': Colors.deepOrange,
     'Romance': Colors.pink,
     'Horror': Colors.grey[850]!,
-    'Historical Fiction': Colors.brown,
+    'History': Colors.brown,
     'Biography': Colors.teal,
     'Self-Help': Colors.cyan,
     'Business': Colors.amber,
@@ -174,12 +174,12 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       elevation: 2,
-      color: Colors.white, // Added explicit white color
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: SizedBox(
-        height: 140, // Increased height for better spacing
+        height: 140,
         child: Dismissible(
           key: Key(book['id'].toString()),
           direction: DismissDirection.endToStart,
@@ -224,8 +224,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                       title: bookData['title'],
                       author: bookData['author'],
                       description: bookData['description'],
-                      coverUrl: bookData[
-                          'image_url'], // Changed from cover_url to image_url
+                      coverUrl: bookData['image_url'],
                       genre: bookData['genre'],
                       year: bookData['year'],
                       quantity: bookData['quantity'],
@@ -239,8 +238,8 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                 children: [
                   // Book Cover
                   Container(
-                    width: 95, // Increased width for better proportion
-                    height: 140, // Increased height to match parent container
+                    width: 95,
+                    height: 140,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
@@ -283,12 +282,10 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(
-                      width: 20), // Increased spacing between image and text
+                  const SizedBox(width: 20),
                   Expanded(
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center, // Center content vertically
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -300,7 +297,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6), // Adjusted spacing
+                        const SizedBox(height: 6),
                         Text(
                           'By ${bookData['author'] ?? 'Unknown Author'}',
                           style: TextStyle(
@@ -346,9 +343,20 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                     ),
                   ),
                   IconButton(
-                    padding:
-                        const EdgeInsets.all(8), // Added padding to icon button
-                    icon: const Icon(Icons.favorite_rounded, color: Colors.red),
+                    padding: const EdgeInsets.all(10),
+                    icon: Container(
+                      padding: const EdgeInsets.all(6),
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: secondary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                     onPressed: () => _removeFavorite(book),
                   ),
                 ],
@@ -416,16 +424,12 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_rounded,
-            color: Colors.white,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           'Favorite Books',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         centerTitle: true,
         backgroundColor: secondary,
@@ -436,22 +440,35 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 5),
-            child: TextField(
-              controller: _searchController,
-              cursorColor: primary,
-              decoration: InputDecoration(
-                hintText: 'Search favorites...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                prefixIcon: Icon(Icons.search, color: secondary),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 0,
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                cursorColor: primary,
+                decoration: InputDecoration(
+                  hintText: 'Search favorites...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search, color: secondary),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -462,7 +479,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
             padding: const EdgeInsets.symmetric(horizontal: 15),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
+              itemCount: _isLoading ? 6 : categories.length,
               itemBuilder: (context, index) {
                 IconData categoryIcon = _getCategoryIcon(categories[index]);
                 Color categoryColors =
@@ -483,14 +500,16 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
                           height: 65,
                           decoration: BoxDecoration(
                             color: selectedCategory == categories[index]
-                                ? categoryColors.withOpacity(0.2)
+                                ? categoryColors
                                 : categoryColors.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: Icon(
                             categoryIcon,
-                            color: categoryColors,
-                            size: 28,
+                            size: 30,
+                            color: selectedCategory == categories[index]
+                                ? Colors.white
+                                : categoryColors,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -592,7 +611,7 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
         return Icons.favorite_rounded;
       case 'horror':
         return Icons.dark_mode_rounded;
-      case 'historical fiction':
+      case 'history':
         return Icons.history_edu_rounded;
       case 'biography':
         return Icons.person_rounded;

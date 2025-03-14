@@ -6,7 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class BrowseBooksPage extends StatefulWidget {
-  const BrowseBooksPage({super.key});
+  final String? initialCategory;
+  final bool showAvailableOnly;
+  const BrowseBooksPage({
+    super.key,
+    this.initialCategory,
+    this.showAvailableOnly = false,
+  });
 
   @override
   State<BrowseBooksPage> createState() => _BrowseBooksPageState();
@@ -30,7 +36,7 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
     'Thriller',
     'Romance',
     'Horror',
-    'Historical Fiction',
+    'History',
     'Biography',
     'Self-Help',
     'Business',
@@ -54,7 +60,7 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
     'Thriller': Colors.deepOrange,
     'Romance': Colors.pink,
     'Horror': Colors.grey[850]!,
-    'Historical Fiction': Colors.brown,
+    'History': Colors.brown,
     'Biography': Colors.teal,
     'Self-Help': Colors.cyan,
     'Business': Colors.amber,
@@ -71,6 +77,7 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
   @override
   void initState() {
     super.initState();
+    selectedCategory = widget.initialCategory; // Set initial category
     fetchBooks();
     _searchController.addListener(_onSearchChanged);
   }
@@ -90,10 +97,20 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
 
   Future<void> fetchBooks() async {
     try {
-      final response = await _supabase
-          .from('books')
-          .select()
-          .order('created_at', ascending: false);
+      var query = _supabase.from('books').select();
+
+      // Only filter by quantity if showAvailableOnly is true
+      if (widget.showAvailableOnly) {
+        query = query.gt('quantity', 0);
+      }
+      // Otherwise, show all books regardless of quantity
+
+      // Apply category filter if selected
+      if (selectedCategory != null && selectedCategory != 'All') {
+        query = query.eq('genre', selectedCategory as Object);
+      }
+
+      final response = await query.order('created_at', ascending: false);
 
       if (response != null) {
         setState(() {
@@ -159,7 +176,7 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
         return Icons.favorite_rounded;
       case 'Horror':
         return Icons.dark_mode_rounded;
-      case 'Historical Fiction':
+      case 'History':
         return Icons.history_edu_rounded;
       case 'Biography':
         return Icons.person_rounded;
@@ -265,33 +282,33 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                         itemCount: categories.length,
                         itemBuilder: (context, index) {
                           final category = categories[index];
+                          final categoryColors =
+                              categoryColor[category] ?? Colors.blue;
                           final isSelected = selectedCategory == category;
+
                           return Padding(
-                            padding: EdgeInsets.only(
-                              right: 16,
-                              left: index == 0 ? 0 : 0,
-                            ),
+                            padding: const EdgeInsets.only(right: 15),
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  selectedCategory =
-                                      isSelected ? null : category;
+                                  selectedCategory = category;
                                 });
                               },
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 60,
-                                    height: 60,
+                                    width: 65,
+                                    height: 65,
                                     decoration: BoxDecoration(
-                                      color: categoryColor[category]
-                                          ?.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(16),
+                                      color: isSelected
+                                          ? categoryColors.withOpacity(0.2)
+                                          : categoryColors.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(15),
                                     ),
                                     child: Icon(
                                       _getCategoryIcon(category),
-                                      color: categoryColor[category],
-                                      size: 30,
+                                      color: categoryColors,
+                                      size: 28,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -300,9 +317,11 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: isSelected
-                                          ? categoryColor[category]
-                                          : Colors.grey[800],
-                                      fontWeight: FontWeight.w500,
+                                          ? categoryColors
+                                          : Colors.grey[600],
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
                                     ),
                                   ),
                                 ],
@@ -398,8 +417,9 @@ class _BrowseBooksPageState extends State<BrowseBooksPage> {
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        BookDetailsPage(book: book),
+                                    builder: (context) => BookDetailsPage(
+                                      book: book,
+                                    ),
                                   ),
                                 ),
                                 child: Stack(

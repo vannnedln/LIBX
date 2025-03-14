@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:libx_final/theme/colors.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +14,7 @@ class BorrowedBook {
   final DateTime dueDate;
   final String status;
   final bool hasReturnRequest;
+  final String genre; // Add this field
 
   BorrowedBook({
     required this.id,
@@ -24,6 +26,7 @@ class BorrowedBook {
     required this.dueDate,
     required this.status,
     this.hasReturnRequest = false,
+    required this.genre, // Add this parameter
   });
 }
 
@@ -41,6 +44,56 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   bool _isLoading = true;
   String _searchQuery = '';
 
+  // Add these new properties
+  String? selectedCategory;
+  final List<String> categories = [
+    'All',
+    'Fiction',
+    'Non-Fiction',
+    'Science Fiction',
+    'Fantasy',
+    'Mystery',
+    'Thriller',
+    'Romance',
+    'Horror',
+    'History',
+    'Biography',
+    'Self-Help',
+    'Business',
+    'Technology',
+    'Science',
+    'Poetry',
+    'Drama',
+    'Children',
+    'Young Adult',
+    'Educational',
+    'Reference',
+  ];
+
+  final Map<String, Color> categoryColor = {
+    'All': Colors.blue,
+    'Fiction': Colors.purple,
+    'Non-Fiction': Colors.green,
+    'Science Fiction': Colors.orange,
+    'Fantasy': Colors.red,
+    'Mystery': Colors.indigo,
+    'Thriller': Colors.deepOrange,
+    'Romance': Colors.pink,
+    'Horror': Colors.grey[850]!,
+    'History': Colors.brown,
+    'Biography': Colors.teal,
+    'Self-Help': Colors.cyan,
+    'Business': Colors.amber,
+    'Technology': Colors.lightBlue,
+    'Science': Colors.deepPurple,
+    'Poetry': Colors.purple[300]!,
+    'Drama': Colors.orange[800]!,
+    'Children': Colors.yellow[700]!,
+    'Young Adult': Colors.lightGreen,
+    'Educational': Colors.indigoAccent,
+    'Reference': Colors.blueGrey,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +109,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
       final userId = _supabase.auth.currentUser!.id;
 
       // Get borrowed books
+      // Update the select query to include genre
       final response = await _supabase.from('borrowed_books').select('''
             id, 
             book_id,
@@ -65,22 +119,20 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
             books:book_id (
               title, 
               author,
-              image_url
+              image_url,
+              genre
             )
           ''').eq('user_id', userId).eq('status', 'borrowed').order('due_date');
 
-      // Get return requests to check which books have pending return requests
       final returnRequests = await _supabase
           .from('return_requests')
           .select('borrow_id, status')
           .eq('user_id', userId)
           .eq('status', 'pending');
 
-      // Create a set of borrow IDs with pending return requests
       final pendingReturnBorrowIds = Set<int>.from(
           returnRequests.map((request) => request['borrow_id'] as int));
 
-      // Convert response to BorrowedBook objects
       final List<BorrowedBook> books = [];
       for (var item in response) {
         final book = item['books'];
@@ -95,6 +147,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
             dueDate: DateTime.parse(item['due_date']),
             status: item['status'],
             hasReturnRequest: pendingReturnBorrowIds.contains(item['id']),
+            genre: book['genre'] ?? 'Unknown',
           ),
         );
       }
@@ -117,15 +170,17 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   void _filterBooks(String query) {
     setState(() {
       _searchQuery = query;
-      if (query.isEmpty) {
-        _filteredBooks = _borrowedBooks;
-      } else {
-        _filteredBooks = _borrowedBooks
-            .where((book) =>
-                book.title.toLowerCase().contains(query.toLowerCase()) ||
-                book.author.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      }
+      _filteredBooks = _borrowedBooks.where((book) {
+        final matchesSearch = query.isEmpty ||
+            book.title.toLowerCase().contains(query.toLowerCase()) ||
+            book.author.toLowerCase().contains(query.toLowerCase());
+
+        final matchesCategory = selectedCategory == null ||
+            selectedCategory == 'All' ||
+            book.genre == selectedCategory;
+
+        return matchesSearch && matchesCategory;
+      }).toList();
     });
   }
 
@@ -150,6 +205,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
       final shouldRequest = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text(
             'Request Book Return',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -179,7 +235,6 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
 
       if (shouldRequest != true) return;
 
-      // Create a return request instead of updating the borrowed_books table
       await _supabase.from('return_requests').insert({
         'borrow_id': borrowId,
         'user_id': _supabase.auth.currentUser!.id,
@@ -260,7 +315,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           ),
           // Days Left Indicator
           Positioned(
-            bottom: 45, // Space for the return button
+            bottom: 45,
             left: 0,
             right: 0,
             child: Container(
@@ -332,131 +387,256 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
+      appBar: AppBar(
+        backgroundColor: secondary,
+        centerTitle: true,
+        title: Text(
+          "Borrowed Books",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Borrowed Books',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Keep track of your borrowed books',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Search Bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 0,
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search borrowed books...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.search, color: secondary),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
+        child: Skeletonizer(
+          enabled: _isLoading,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Search Bar
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            spreadRadius: 0,
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      onChanged: _filterBooks,
+                      child: TextField(
+                        enabled: !_isLoading,
+                        cursorColor: primary,
+                        decoration: InputDecoration(
+                          hintText: 'Search borrowed books...',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Icon(Icons.search, color: secondary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        onChanged: _filterBooks,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: secondary),
-                    )
-                  : _filteredBooks.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.book_outlined,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _searchQuery.isNotEmpty
-                                    ? 'No books match your search'
-                                    : 'You have no borrowed books',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              if (_searchQuery.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    _filterBooks('');
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: secondary,
+                    const SizedBox(height: 20),
+                    // Category Filter
+                    Container(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _isLoading ? 6 : categories.length,
+                        itemBuilder: (context, index) {
+                          IconData categoryIcon =
+                              _getCategoryIcon(categories[index]);
+                          Color categoryColors =
+                              categoryColor[categories[index]] ?? Colors.blue;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 15),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedCategory = categories[index];
+                                  _filterBooks(_searchQuery);
+                                });
+                              },
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 65,
+                                    height: 65,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          selectedCategory == categories[index]
+                                              ? categoryColors
+                                              : categoryColors.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: Icon(
+                                      categoryIcon,
+                                      size: 30,
+                                      color:
+                                          selectedCategory == categories[index]
+                                              ? Colors.white
+                                              : categoryColors,
+                                    ),
                                   ),
-                                  child: const Text('Clear Search'),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    categories[index],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          selectedCategory == categories[index]
+                                              ? categoryColors
+                                              : Colors.grey[600],
+                                      fontWeight:
+                                          selectedCategory == categories[index]
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _isLoading
+                    ? GridView.builder(
+                        padding: const EdgeInsets.all(20),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                        itemCount: 6,
+                        itemBuilder: (context, index) {
+                          return _buildBookCard(
+                            BorrowedBook(
+                              id: index,
+                              bookId: index,
+                              title: 'Loading...',
+                              author: 'Loading...',
+                              coverUrl: '',
+                              borrowDate: DateTime.now(),
+                              dueDate: DateTime.now().add(Duration(days: 7)),
+                              status: 'borrowed',
+                              genre: 'Loading...',
+                            ),
+                          );
+                        },
+                      )
+                    : _filteredBooks.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.book_outlined,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'No books match your search'
+                                      : 'You have no borrowed books',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _loadBorrowedBooks,
-                          color: secondary,
-                          child: GridView.builder(
-                            padding: const EdgeInsets.all(20),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.7,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
                             ),
-                            itemCount: _filteredBooks.length,
-                            itemBuilder: (context, index) {
-                              return _buildBookCard(_filteredBooks[index]);
-                            },
+                          )
+                        : RefreshIndicator(
+                            backgroundColor: Colors.white,
+                            onRefresh: _loadBorrowedBooks,
+                            color: primary,
+                            child: GridView.builder(
+                              padding: const EdgeInsets.all(20),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.7,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                              ),
+                              itemCount: _filteredBooks.length,
+                              itemBuilder: (context, index) {
+                                return _buildBookCard(_filteredBooks[index]);
+                              },
+                            ),
                           ),
-                        ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+IconData _getCategoryIcon(String category) {
+  switch (category) {
+    case 'All':
+      return Icons.apps_rounded;
+    case 'Fiction':
+      return Icons.auto_stories_rounded;
+    case 'Non-Fiction':
+      return Icons.menu_book_rounded;
+    case 'Science Fiction':
+      return Icons.rocket_launch_rounded;
+    case 'Fantasy':
+      return Icons.auto_fix_high_rounded;
+    case 'Mystery':
+      return Icons.search_rounded;
+    case 'Thriller':
+      return Icons.psychology_rounded;
+    case 'Romance':
+      return Icons.favorite_rounded;
+    case 'Horror':
+      return Icons.dark_mode_rounded;
+    case 'History':
+      return Icons.history_edu_rounded;
+    case 'Biography':
+      return Icons.person_rounded;
+    case 'Self-Help':
+      return Icons.psychology_rounded;
+    case 'Business':
+      return Icons.business_center_rounded;
+    case 'Technology':
+      return Icons.computer_rounded;
+    case 'Science':
+      return Icons.science_rounded;
+    case 'Poetry':
+      return Icons.format_quote_rounded;
+    case 'Drama':
+      return Icons.theater_comedy_rounded;
+    case 'Children':
+      return Icons.child_care_rounded;
+    case 'Young Adult':
+      return Icons.group_rounded;
+    case 'Educational':
+      return Icons.school_rounded;
+    case 'Reference':
+      return Icons.library_books_rounded;
+    default:
+      return Icons.book_rounded;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:libx_final/pages/auth/user/borrowed_books_page.dart';
 import 'package:libx_final/pages/auth/user/book_details_page.dart';
+import 'package:libx_final/pages/auth/user/browse_books_page.dart';
 import 'package:libx_final/pages/auth/user/user_root_app.dart';
 import 'package:libx_final/theme/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,7 +59,7 @@ class _UserHomepageState extends State<UserHomepage> {
     'Thriller',
     'Romance',
     'Horror',
-    'Historical Fiction',
+    'History',
     'Biography',
     'Self-Help',
     'Business',
@@ -81,7 +82,7 @@ class _UserHomepageState extends State<UserHomepage> {
     'Thriller': Colors.deepOrange,
     'Romance': Colors.pink,
     'Horror': Colors.grey[850]!,
-    'Historical Fiction': Colors.brown,
+    'History': Colors.brown,
     'Biography': Colors.teal,
     'Self-Help': Colors.cyan,
     'Business': Colors.amber,
@@ -113,7 +114,7 @@ class _UserHomepageState extends State<UserHomepage> {
         return Icons.favorite_rounded;
       case 'horror':
         return Icons.dark_mode_rounded;
-      case 'historical fiction':
+      case 'history':
         return Icons.history_edu_rounded;
       case 'biography':
         return Icons.person_rounded;
@@ -149,6 +150,18 @@ class _UserHomepageState extends State<UserHomepage> {
     fetchUserProfile();
     fetchBorrowedBooks();
     fetchBorrowingStats();
+  }
+
+  void _onCategoryTap(String category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BrowseBooksPage(
+          initialCategory: category,
+          showAvailableOnly: true, // Add this parameter
+        ),
+      ),
+    );
   }
 
   // Add this method
@@ -357,65 +370,6 @@ class _UserHomepageState extends State<UserHomepage> {
                               ),
                             ],
                           ),
-                          const Spacer(),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.notifications_rounded),
-                              color: secondary,
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                      title: const Row(
-                                        children: [
-                                          Icon(Icons.notifications,
-                                              color: secondary),
-                                          SizedBox(width: 10),
-                                          Text('Notifications'),
-                                        ],
-                                      ),
-                                      content: SizedBox(
-                                        width: double.maxFinite,
-                                        child: ListView(
-                                          shrinkWrap: true,
-                                          children: [
-                                            _buildNotificationItem(
-                                              'Book Due Tomorrow',
-                                              'The Great Gatsby is due tomorrow',
-                                              Icons.warning,
-                                              Colors.orange,
-                                            ),
-                                            const Divider(),
-                                            _buildNotificationItem(
-                                              'New Book Available',
-                                              'Check out our latest addition!',
-                                              Icons.new_releases,
-                                              Colors.green,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('Close'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -508,17 +462,32 @@ class _UserHomepageState extends State<UserHomepage> {
                       ],
                     ),
                   ),
+                  const SizedBox(
+                    height: 10,
+                  ),
 
                   // Top Available Books Section
                   Skeletonizer(
                     enabled: isLoading,
-                    child: _buildSectionHeader('Top Available for you!',
-                        onViewAll: () {}),
+                    child: _buildSectionHeader(
+                      'Top Available for you!',
+                      onViewAll: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BrowseBooksPage(
+                            initialCategory: 'All',
+                            showAvailableOnly: true, // Add this parameter
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Skeletonizer(
                     enabled: isLoading,
                     child: SizedBox(
+                      // In the build method, replace the ListView.builder for available books
+
                       height: 200,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -526,32 +495,42 @@ class _UserHomepageState extends State<UserHomepage> {
                         itemBuilder: (context, index) {
                           final book = availableBooks[index];
                           return GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BookDetailsPage(
-                                  book: book,
+                            // Fix: Return the GestureDetector
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      BookDetailsPage(book: book),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                             child: Container(
                               width: 140,
                               margin: const EdgeInsets.only(right: 16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                image: DecorationImage(
-                                  image: NetworkImage(book.coverUrl),
-                                  fit: BoxFit.cover,
-                                  onError: (exception, stackTrace) =>
-                                      const AssetImage(
-                                          'assets/images/book_placeholder.png'),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    spreadRadius: 0,
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        book.coverUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(
+                                              Icons.book,
+                                              size: 40,
+                                              color: Colors.grey,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -633,75 +612,85 @@ class _UserHomepageState extends State<UserHomepage> {
                                 final daysLeft =
                                     dueDate.difference(DateTime.now()).inDays;
 
-                                return Container(
-                                  width: 120,
-                                  margin: const EdgeInsets.only(right: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.grey.withOpacity(0.1),
-                                        spreadRadius: 0,
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
+                                return GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const BorrowedBooksPage(),
+                                    ),
                                   ),
-                                  child: Stack(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          book['image_url'] ??
-                                              'https://via.placeholder.com/150',
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return Container(
-                                              color: Colors.grey[200],
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.book,
-                                                  size: 40,
-                                                  color: Colors.grey,
+                                  child: Container(
+                                    width: 120,
+                                    margin: const EdgeInsets.only(right: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.grey.withOpacity(0.1),
+                                          spreadRadius: 0,
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: Image.network(
+                                            book['image_url'] ??
+                                                'https://via.placeholder.com/150',
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Container(
+                                                color: Colors.grey[200],
+                                                child: const Center(
+                                                  child: Icon(
+                                                    Icons.book,
+                                                    size: 40,
+                                                    color: Colors.grey,
+                                                  ),
                                                 ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                              horizontal: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: daysLeft <= 1
+                                                  ? Colors.red.withOpacity(0.8)
+                                                  : primary.withOpacity(0.8),
+                                              borderRadius:
+                                                  const BorderRadius.vertical(
+                                                bottom: Radius.circular(12),
                                               ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                      Positioned(
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                            horizontal: 12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: daysLeft <= 1
-                                                ? Colors.red.withOpacity(0.8)
-                                                : primary.withOpacity(0.8),
-                                            borderRadius:
-                                                const BorderRadius.vertical(
-                                              bottom: Radius.circular(12),
+                                            ),
+                                            child: Text(
+                                              '$daysLeft Days Left',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
                                           ),
-                                          child: Text(
-                                            '$daysLeft Days Left',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 );
                               },
@@ -750,9 +739,7 @@ class _UserHomepageState extends State<UserHomepage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            print('Selected genre: $title');
-          },
+          onTap: () => _onCategoryTap(title), // Update this line
           borderRadius: BorderRadius.circular(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -772,29 +759,6 @@ class _UserHomepageState extends State<UserHomepage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildNotificationItem(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color iconColor,
-  ) {
-    return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-      ),
-      subtitle: Text(subtitle),
-      onTap: () {
-        // Handle notification tap
-        print('Notification tapped: $title');
-      },
     );
   }
 }
