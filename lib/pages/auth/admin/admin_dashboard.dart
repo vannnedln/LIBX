@@ -19,6 +19,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String _errorMessage = '';
   String? _userAvatarUrl; // Add this
   String _firstName = ''; // Add this
+  bool _mounted = true;
 
   @override
   void initState() {
@@ -27,8 +28,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _fetchUserProfile(); // Add this
   }
 
-  // Add this method
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
+
   Future<void> _fetchUserProfile() async {
+    if (!mounted) return;
+
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
@@ -155,12 +163,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 10),
                         _buildStatSummary(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 10),
                         _buildGenreChart(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 10),
                         _buildBorrowReturnChart(),
+                        const SizedBox(
+                          height: 80,
+                        ),
                       ],
                     ),
                   ),
@@ -169,6 +180,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _loadDashboardData() async {
+    if (!mounted) return;
+
     try {
       setState(() {
         _isLoading = true;
@@ -224,13 +237,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         }
       }
 
-      setState(() => _isLoading = false);
+      if (_mounted) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       print('Error loading dashboard data: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Failed to load dashboard data. Please try again.';
-      });
+      if (_mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load dashboard data. Please try again.';
+        });
+      }
     }
   }
 
@@ -241,44 +258,70 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _borrowedData.values.fold(0, (sum, count) => sum + count);
     final totalReturned =
         _returnedData.values.fold(0, (sum, count) => sum + count);
-    return Row(
+    return Column(
       children: [
+        _buildStatCard('Total Books', totalBooks.toString(), Icons.book_rounded,
+            Colors.blue),
+        const SizedBox(height: 16),
+        _buildStatCard('Borrowed (7d)', totalBorrowed.toString(),
+            Icons.upload_rounded, Colors.orange),
+        const SizedBox(height: 16),
         _buildStatCard(
-            'Total Books', totalBooks.toString(), Icons.book, Colors.blue),
-        const SizedBox(width: 16),
-        _buildStatCard('Borrowed (7d)', totalBorrowed.toString(), Icons.upload,
-            Colors.orange),
-        const SizedBox(width: 16),
-        _buildStatCard('Returned (7d)', totalReturned.toString(),
-            Icons.download, Colors.green),
+          'Returned (7d)',
+          totalReturned.toString(),
+          Icons.download_rounded,
+          Colors.green,
+        ),
       ],
     );
   }
 
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
-    return Expanded(
+    return SizedBox(
+      width: double.infinity,
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Icon(icon, color: color),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[600],
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 36,
                 ),
               ),
             ],
@@ -315,76 +358,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: 200,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
-                        sections: _genreData.take(5).map((data) {
-                          final total = _genreData.fold(
-                              0, (sum, item) => sum + (item['count'] as int));
-                          final percentage =
-                              (data['count'] as int) / total * 100;
-                          return PieChartSectionData(
-                            color: Colors.primaries[_genreData.indexOf(data) %
-                                Colors.primaries.length],
-                            value: data['count'].toDouble(),
-                            title: '${percentage.toStringAsFixed(1)}%',
-                            radius: 50,
-                            titleStyle: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        }).toList(),
+            SizedBox(
+              height: 200,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 40,
+                  sections: _genreData.map((data) {
+                    final total = _genreData.fold(
+                        0, (sum, item) => sum + (item['count'] as int));
+                    final percentage = (data['count'] as int) / total * 100;
+                    return PieChartSectionData(
+                      color: Colors.primaries[
+                          _genreData.indexOf(data) % Colors.primaries.length],
+                      value: data['count'].toDouble(),
+                      title: '${percentage.toStringAsFixed(1)}%',
+                      radius: 50,
+                      titleStyle: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: _genreData.map((data) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.primaries[
+                            _genreData.indexOf(data) % Colors.primaries.length],
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: _genreData.take(5).map((data) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: Colors.primaries[
-                                    _genreData.indexOf(data) %
-                                        Colors.primaries.length],
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${data['genre']} (${data['count']})',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 8),
+                    Text(
+                      '${data['genre']} (${data['count']})',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -408,7 +435,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .reduce((max, value) => value > max ? value : max);
     }
 
-    // If maxY is still 0, set it to 1 to avoid empty chart
     if (maxY == 0) maxY = 1;
 
     return Card(
@@ -419,24 +445,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Book Activity',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Row(
-                  children: [
-                    _buildLegendItem('Borrowed', Colors.blue),
-                    const SizedBox(width: 16),
-                    _buildLegendItem('Returned', Colors.green),
-                  ],
-                ),
-              ],
+            const Text(
+              'Book Activity',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const Text(
               'Last 7 Days',
@@ -557,6 +571,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendItem('Borrowed', Colors.blue),
+                const SizedBox(width: 24),
+                _buildLegendItem('Returned', Colors.green),
+              ],
             ),
           ],
         ),

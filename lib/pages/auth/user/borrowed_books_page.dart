@@ -398,194 +398,214 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
           ),
         ),
       ),
-      body: SafeArea(
+      body: RefreshIndicator(
+        onRefresh: _loadBorrowedBooks,
+        color: primary,
+        backgroundColor: Colors.white,
         child: Skeletonizer(
           enabled: _isLoading,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            spreadRadius: 0,
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        enabled: !_isLoading,
-                        cursorColor: primary,
-                        decoration: InputDecoration(
-                          hintText: 'Search borrowed books...',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          prefixIcon: Icon(Icons.search, color: secondary),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        onChanged: _filterBooks,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Category Filter
-                    Container(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _isLoading ? 6 : categories.length,
-                        itemBuilder: (context, index) {
-                          IconData categoryIcon =
-                              _getCategoryIcon(categories[index]);
-                          Color categoryColors =
-                              categoryColor[categories[index]] ?? Colors.blue;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 15),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedCategory = categories[index];
-                                  _filterBooks(_searchQuery);
-                                });
-                              },
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 65,
-                                    height: 65,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          selectedCategory == categories[index]
-                                              ? categoryColors
-                                              : categoryColors.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: Icon(
-                                      categoryIcon,
-                                      size: 30,
-                                      color:
-                                          selectedCategory == categories[index]
-                                              ? Colors.white
-                                              : categoryColors,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    categories[index],
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color:
-                                          selectedCategory == categories[index]
-                                              ? categoryColors
-                                              : Colors.grey[600],
-                                      fontWeight:
-                                          selectedCategory == categories[index]
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              ),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(15.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Search Bar
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              spreadRadius: 0,
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
                             ),
-                          );
-                        },
+                          ],
+                        ),
+                        child: TextField(
+                          enabled: !_isLoading,
+                          cursorColor: primary,
+                          decoration: InputDecoration(
+                            hintText: 'Search borrowed books...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: Icon(Icons.search, color: secondary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onChanged: _filterBooks,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      // Category Filter
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _isLoading ? 6 : categories.length,
+                          itemBuilder: (context, index) {
+                            if (_isLoading) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 15),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 65,
+                                      height: 65,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: 60,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            IconData categoryIcon =
+                                _getCategoryIcon(categories[index]);
+                            Color categoryColors =
+                                categoryColor[categories[index]] ?? Colors.blue;
+                            return _buildCategoryItem(
+                                index, categoryIcon, categoryColors);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _isLoading
-                    ? GridView.builder(
-                        padding: const EdgeInsets.all(20),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.7,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: 6,
-                        itemBuilder: (context, index) {
-                          return _buildBookCard(
-                            BorrowedBook(
-                              id: index,
-                              bookId: index,
-                              title: 'Loading...',
-                              author: 'Loading...',
-                              coverUrl: '',
-                              borrowDate: DateTime.now(),
-                              dueDate: DateTime.now().add(Duration(days: 7)),
-                              status: 'borrowed',
-                              genre: 'Loading...',
-                            ),
-                          );
-                        },
-                      )
-                    : _filteredBooks.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.book_outlined,
-                                  size: 64,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchQuery.isNotEmpty
-                                      ? 'No books match your search'
-                                      : 'You have no borrowed books',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            backgroundColor: Colors.white,
-                            onRefresh: _loadBorrowedBooks,
-                            color: primary,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(20),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.7,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                              ),
-                              itemCount: _filteredBooks.length,
-                              itemBuilder: (context, index) {
-                                return _buildBookCard(_filteredBooks[index]);
-                              },
-                            ),
+                Expanded(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(20),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.7,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: _isLoading
+                        ? 6
+                        : (_filteredBooks.isEmpty ? 1 : _filteredBooks.length),
+                    itemBuilder: (context, index) {
+                      if (_isLoading) {
+                        return _buildBookCard(
+                          BorrowedBook(
+                            id: index,
+                            bookId: index,
+                            title: 'Loading...',
+                            author: 'Loading...',
+                            coverUrl: '',
+                            borrowDate: DateTime.now(),
+                            dueDate: DateTime.now().add(Duration(days: 7)),
+                            status: 'borrowed',
+                            genre: 'Loading...',
                           ),
-              ),
-            ],
+                        );
+                      }
+
+                      if (_filteredBooks.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.book_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? 'No books match your search'
+                                    : 'You have no borrowed books',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return _buildBookCard(_filteredBooks[index]);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryItem(
+      int index, IconData categoryIcon, Color categoryColors) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 15),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedCategory = categories[index];
+            _filterBooks(_searchQuery);
+          });
+        },
+        child: Column(
+          children: [
+            Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: selectedCategory == categories[index]
+                    ? categoryColors
+                    : categoryColors.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                categoryIcon,
+                size: 30,
+                color: selectedCategory == categories[index]
+                    ? Colors.white
+                    : categoryColors,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              categories[index],
+              style: TextStyle(
+                fontSize: 12,
+                color: selectedCategory == categories[index]
+                    ? categoryColors
+                    : Colors.grey[600],
+                fontWeight: selectedCategory == categories[index]
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -435,153 +435,138 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
         backgroundColor: secondary,
         elevation: 4,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 5),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 0,
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                cursorColor: primary,
-                decoration: InputDecoration(
-                  hintText: 'Search favorites...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  prefixIcon: Icon(Icons.search, color: secondary),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
+      body: RefreshIndicator(
+        backgroundColor: Colors.white,
+        onRefresh: _loadFavoriteBooks,
+        color: primary,
+        child: Skeletonizer(
+          enabled: _isLoading,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Search bar and category list remain unchanged
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 5),
+                child: Container(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 0,
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  child: TextField(
+                    controller: _searchController,
+                    enabled: !_isLoading,
+                    cursorColor: primary,
+                    decoration: InputDecoration(
+                      hintText: 'Search favorites...',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.search, color: secondary),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            height: 100,
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _isLoading ? 6 : categories.length,
-              itemBuilder: (context, index) {
-                IconData categoryIcon = _getCategoryIcon(categories[index]);
-                Color categoryColors =
-                    categoryColor[categories[index]] ?? Colors.blue;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 15),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedCategory = categories[index];
-                      });
-                    },
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: selectedCategory == categories[index]
-                                ? categoryColors
-                                : categoryColors.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Icon(
-                            categoryIcon,
-                            size: 30,
-                            color: selectedCategory == categories[index]
-                                ? Colors.white
-                                : categoryColors,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          categories[index],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: selectedCategory == categories[index]
-                                ? categoryColors
-                                : Colors.grey[600],
-                            fontWeight: selectedCategory == categories[index]
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: Skeletonizer(
-              enabled: _isLoading,
-              child: _isLoading
-                  ? ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                          16, 16, 16, 80), // Added bottom padding
-                      itemCount: 3,
-                      itemBuilder: (context, index) =>
-                          _buildFavoriteBookCard(null),
-                    )
-                  : _filteredBooks.isEmpty
-                      ? ListView(
-                          children: const [
-                            SizedBox(
-                              height: 150,
+              const SizedBox(height: 20),
+              // Category list with skeleton loading
+              Container(
+                height: 100,
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _isLoading ? 6 : categories.length,
+                  itemBuilder: (context, index) {
+                    if (_isLoading) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 15),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 65,
+                              height: 65,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(15),
+                              ),
                             ),
-                            Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.search_off_rounded,
-                                    size: 64,
-                                    color: Colors.grey,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No books found',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 8),
+                            Container(
+                              width: 60,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(6),
                               ),
                             ),
                           ],
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                          itemCount: _filteredBooks.length,
-                          itemBuilder: (context, index) {
-                            final book = _filteredBooks[index];
-                            return _buildFavoriteBookCard(book);
-                          },
                         ),
-            ),
+                      );
+                    }
+                    // Rest of category item builder remains unchanged
+                    IconData categoryIcon = _getCategoryIcon(categories[index]);
+                    Color categoryColors =
+                        categoryColor[categories[index]] ?? Colors.blue;
+                    return _buildCategoryItem(
+                        index, categoryIcon, categoryColors);
+                  },
+                ),
+              ),
+              // Books list with skeleton loading
+              Expanded(
+                child: _isLoading
+                    ? ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: 3,
+                        itemBuilder: (context, index) =>
+                            _buildFavoriteBookCard(null),
+                      )
+                    : _filteredBooks.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No books found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _filteredBooks.length,
+                            itemBuilder: (context, index) {
+                              return _buildFavoriteBookCard(
+                                  _filteredBooks[index]);
+                            },
+                          ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -589,6 +574,55 @@ class _FavoriteBooksPageState extends State<FavoriteBooksPage> {
   String _formatDate(String dateString) {
     final date = DateTime.parse(dateString);
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildCategoryItem(int index, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 15),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedCategory = selectedCategory == categories[index]
+                ? null
+                : categories[index];
+          });
+        },
+        child: Column(
+          children: [
+            Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: selectedCategory == categories[index]
+                    ? color
+                    : color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                icon,
+                size: 30,
+                color: selectedCategory == categories[index]
+                    ? Colors.white
+                    : color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              categories[index],
+              style: TextStyle(
+                fontSize: 12,
+                color: selectedCategory == categories[index]
+                    ? color
+                    : Colors.grey[600],
+                fontWeight: selectedCategory == categories[index]
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   IconData _getCategoryIcon(String category) {
