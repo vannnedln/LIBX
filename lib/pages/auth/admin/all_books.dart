@@ -367,6 +367,18 @@ class AllBooksState extends State<AllBooks> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'All Books',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: secondary,
+        elevation: 4,
+      ),
       backgroundColor: background,
       body: RefreshIndicator(
         color: primary,
@@ -377,7 +389,6 @@ class AllBooksState extends State<AllBooks> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 50),
               Row(
                 children: [
                   Expanded(
@@ -404,12 +415,25 @@ class AllBooksState extends State<AllBooks> {
                           color: secondary,
                         ),
                         filled: true,
-                        fillColor: Colors.grey[200],
+                        fillColor: Colors.white,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(15),
                           borderSide: BorderSide.none,
                         ),
                       ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          spreadRadius: 0,
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -441,14 +465,16 @@ class AllBooksState extends State<AllBooks> {
                               height: 65,
                               decoration: BoxDecoration(
                                 color: selectedCategory == categories[index]
-                                    ? categoryColors.withOpacity(0.2)
+                                    ? categoryColors
                                     : categoryColors.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(15),
                               ),
                               child: Icon(
                                 categoryIcon,
-                                color: categoryColors,
-                                size: 28,
+                                size: 30,
+                                color: selectedCategory == categories[index]
+                                    ? Colors.white
+                                    : categoryColors,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -535,6 +561,7 @@ class AllBooksState extends State<AllBooks> {
                         ),
                       )
                     : ListView.builder(
+                        padding: const EdgeInsets.only(top: 30),
                         itemCount: filteredBooks.length,
                         itemBuilder: (context, index) {
                           final book = filteredBooks[index];
@@ -669,7 +696,7 @@ class AllBooksState extends State<AllBooks> {
                                                     child: Text(
                                                       (book['quantity'] ?? 0) >
                                                               0
-                                                          ? 'Available'
+                                                          ? '${book['quantity']} Available'
                                                           : 'Not Available',
                                                       style: TextStyle(
                                                         fontSize: 12,

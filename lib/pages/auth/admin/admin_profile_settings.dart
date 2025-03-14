@@ -155,8 +155,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                         Icons.edit_rounded, "Edit Profile", Colors.blue),
                     _buildMenuItem(
                         Icons.lock_rounded, "Change Password", Colors.green),
-                    _buildMenuItem(Icons.account_circle_sharp,
-                        "Registered Accounts", Colors.purple),
+                    _buildMenuItem(
+                        Icons.info_outline_rounded, "About Us", Colors.purple),
                     const SizedBox(height: 30),
                     SizedBox(
                       width: double.infinity,
@@ -377,8 +377,36 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           case "Change Password":
             await _showChangePasswordDialog();
             break;
-          case "Registered Accounts":
-            // Add registered accounts navigation
+          case "About Us":
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: Text(
+                  'About LIBX',
+                  style: TextStyle(
+                    color: primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: const Text(
+                  'LIBX is a mobile book library that lets you discover, borrow, and enjoy books anytime, anywhere. Your next great read is just a tap away!',
+                  style: TextStyle(fontSize: 16),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(color: primary),
+                    ),
+                  ),
+                ],
+              ),
+            );
             break;
         }
       },
