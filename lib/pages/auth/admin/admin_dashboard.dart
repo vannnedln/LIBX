@@ -1,38 +1,587 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:libx_final/theme/colors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
-import 'package:libx_final/pages/auth/user/user_root_app.dart';
-
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
   @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _genreData = [];
+  Map<DateTime, int> _borrowedData = {};
+  Map<DateTime, int> _returnedData = {};
+  String _errorMessage = '';
+  String? _userAvatarUrl; // Add this
+  String _firstName = ''; // Add this
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+    _fetchUserProfile(); // Add this
+  }
+
+  // Add this method
+  Future<void> _fetchUserProfile() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('avatar_url, first_name, role')
+          .eq('id', userId)
+          .eq('role', 'admin') // Add this line to ensure we're getting an admin
+          .single();
+
+      if (mounted && response != null) {
+        setState(() {
+          _userAvatarUrl = response['avatar_url'];
+          _firstName = response['first_name'] ??
+              'Admin'; // Default to 'Admin' if no name
+        });
+      }
+    } catch (error) {
+      print('Error fetching user profile: $error');
+      // Set a default name if there's an error
+      if (mounted) {
+        setState(() {
+          _firstName = 'Admin';
+        });
+      }
+    }
+  }
+
+  // In the build method, update the body to include the profile card
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: background,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: secondary,
+        centerTitle: true,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UserRootApp(
-                      firstName: 'Admin',
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadDashboardData,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadDashboardData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Add the profile card here
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: secondary,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: Colors.white, width: 1),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 26,
+                                  backgroundColor: Colors.grey[200],
+                                  backgroundImage: _userAvatarUrl != null
+                                      ? NetworkImage(_userAvatarUrl!)
+                                      : null,
+                                  child: _userAvatarUrl == null
+                                      ? Icon(
+                                          Icons.person_rounded,
+                                          size: 30,
+                                          color: secondary,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Welcome back,',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    _firstName,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildStatSummary(),
+                        const SizedBox(height: 24),
+                        _buildGenreChart(),
+                        const SizedBox(height: 24),
+                        _buildBorrowReturnChart(),
+                      ],
                     ),
                   ),
-                );
-              },
-              child: const Text('Go to User Homepage'),
+                ),
+    );
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      // Load genre data
+      final genreResponse = await Supabase.instance.client
+          .from('books')
+          .select('genre')
+          .not('genre', 'is', null);
+      // Count genres
+      final genreCounts = <String, int>{};
+      for (final book in genreResponse) {
+        final genre = book['genre'] as String;
+        genreCounts[genre] = (genreCounts[genre] ?? 0) + 1;
+      }
+      // Convert to list and sort by count
+      _genreData = genreCounts.entries
+          .map((e) => {'genre': e.key, 'count': e.value})
+          .toList()
+        ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+
+      // Load borrowed and returned books data for the last 7 days
+      final DateTime now = DateTime.now();
+      final DateTime sevenDaysAgo = now.subtract(const Duration(days: 7));
+      final borrowedResponse = await Supabase.instance.client
+          .from('borrowed_books')
+          .select('borrow_date')
+          .gte('borrow_date', sevenDaysAgo.toIso8601String());
+      final returnedResponse = await Supabase.instance.client
+          .from('borrowed_books')
+          .select('return_date')
+          .eq('status', 'returned')
+          .not('return_date', 'is', null)
+          .gte('return_date', sevenDaysAgo.toIso8601String());
+
+      // Process borrowed books data
+      _borrowedData = {};
+      for (final book in borrowedResponse) {
+        if (book['borrow_date'] != null) {
+          final date = DateTime.parse(book['borrow_date']).dateOnly;
+          _borrowedData[date] = (_borrowedData[date] ?? 0) + 1;
+        }
+      }
+
+      // Process returned books data
+      _returnedData = {};
+      for (final book in returnedResponse) {
+        if (book['return_date'] != null) {
+          final date = DateTime.parse(book['return_date']).dateOnly;
+          _returnedData[date] = (_returnedData[date] ?? 0) + 1;
+        }
+      }
+
+      setState(() => _isLoading = false);
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load dashboard data. Please try again.';
+      });
+    }
+  }
+
+  Widget _buildStatSummary() {
+    final totalBooks =
+        _genreData.fold(0, (sum, item) => sum + (item['count'] as int));
+    final totalBorrowed =
+        _borrowedData.values.fold(0, (sum, count) => sum + count);
+    final totalReturned =
+        _returnedData.values.fold(0, (sum, count) => sum + count);
+    return Row(
+      children: [
+        _buildStatCard(
+            'Total Books', totalBooks.toString(), Icons.book, Colors.blue),
+        const SizedBox(width: 16),
+        _buildStatCard('Borrowed (7d)', totalBorrowed.toString(), Icons.upload,
+            Colors.orange),
+        const SizedBox(width: 16),
+        _buildStatCard('Returned (7d)', totalReturned.toString(),
+            Icons.download, Colors.green),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenreChart() {
+    if (_genreData.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+            child: Text('No genre data available'),
+          ),
+        ),
+      );
+    }
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Books by Genre',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SizedBox(height: 10),
-            Text('hello nigga'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: _genreData.take(5).map((data) {
+                          final total = _genreData.fold(
+                              0, (sum, item) => sum + (item['count'] as int));
+                          final percentage =
+                              (data['count'] as int) / total * 100;
+                          return PieChartSectionData(
+                            color: Colors.primaries[_genreData.indexOf(data) %
+                                Colors.primaries.length],
+                            value: data['count'].toDouble(),
+                            title: '${percentage.toStringAsFixed(1)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: _genreData.take(5).map((data) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.primaries[
+                                    _genreData.indexOf(data) %
+                                        Colors.primaries.length],
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${data['genre']} (${data['count']})',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildBorrowReturnChart() {
+    final List<FlSpot> borrowedSpots = [];
+    final List<FlSpot> returnedSpots = [];
+    double maxY = 0;
+
+    // Ensure we have data for all 7 days
+    for (int i = 6; i >= 0; i--) {
+      final date = DateTime.now().subtract(Duration(days: i)).dateOnly;
+      final borrowedCount = _borrowedData[date] ?? 0;
+      final returnedCount = _returnedData[date] ?? 0;
+      borrowedSpots.add(FlSpot((6 - i).toDouble(), borrowedCount.toDouble()));
+      returnedSpots.add(FlSpot((6 - i).toDouble(), returnedCount.toDouble()));
+      maxY = [maxY, borrowedCount.toDouble(), returnedCount.toDouble()]
+          .reduce((max, value) => value > max ? value : max);
+    }
+
+    // If maxY is still 0, set it to 1 to avoid empty chart
+    if (maxY == 0) maxY = 1;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Book Activity',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    _buildLegendItem('Borrowed', Colors.blue),
+                    const SizedBox(width: 16),
+                    _buildLegendItem('Returned', Colors.green),
+                  ],
+                ),
+              ],
+            ),
+            const Text(
+              'Last 7 Days',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: 1,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: Colors.grey.withOpacity(0.15),
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          final date = DateTime.now()
+                              .subtract(Duration(days: (6 - value).toInt()));
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              DateFormat('MM/dd').format(date),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        },
+                        interval: 1,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: maxY > 5 ? maxY / 5 : 1,
+                        reservedSize: 40,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          if (value == value.roundToDouble()) {
+                            return Text(
+                              value.toInt().toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: 6,
+                  minY: 0,
+                  maxY: maxY + (maxY > 0 ? maxY * 0.1 : 1),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: borrowedSpots,
+                      isCurved: true,
+                      color: Colors.blue,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) =>
+                            FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                          strokeColor: Colors.blue,
+                        ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.blue.withOpacity(0.1),
+                      ),
+                    ),
+                    LineChartBarData(
+                      spots: returnedSpots,
+                      isCurved: true,
+                      color: Colors.green,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) =>
+                            FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                          strokeColor: Colors.green,
+                        ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.green.withOpacity(0.1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label),
+      ],
+    );
+  }
+}
+
+extension DateTimeExtension on DateTime {
+  DateTime get dateOnly => DateTime(year, month, day);
 }
