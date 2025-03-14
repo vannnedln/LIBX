@@ -29,6 +29,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // Add this method
   Future<void> _fetchUserProfile() async {
+    if (!mounted) return;
+
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
@@ -37,24 +39,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .from('profiles')
           .select('avatar_url, first_name, role')
           .eq('id', userId)
-          .eq('role', 'admin') // Add this line to ensure we're getting an admin
+          .eq('role', 'admin')
           .single();
 
-      if (mounted && response != null) {
+      if (!mounted) return;
+      if (response != null) {
         setState(() {
           _userAvatarUrl = response['avatar_url'];
-          _firstName = response['first_name'] ??
-              'Admin'; // Default to 'Admin' if no name
+          _firstName = response['first_name'] ?? 'Admin';
         });
       }
     } catch (error) {
       print('Error fetching user profile: $error');
-      // Set a default name if there's an error
-      if (mounted) {
-        setState(() {
-          _firstName = 'Admin';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _firstName = 'Admin';
+      });
     }
   }
 
@@ -168,8 +168,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  @override
+  void dispose() {
+    // Cancel any pending operations
+    _isLoading = false;
+    super.dispose();
+  }
+
   Future<void> _loadDashboardData() async {
+    if (!mounted) return; // Add this check at the start
+
     try {
+      if (!mounted) return; // Check mounted before setState
       setState(() {
         _isLoading = true;
         _errorMessage = '';
@@ -180,25 +190,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .from('books')
           .select('genre')
           .not('genre', 'is', null);
+
+      if (!mounted) return; // Check mounted after async operation
+
       // Count genres
       final genreCounts = <String, int>{};
       for (final book in genreResponse) {
         final genre = book['genre'] as String;
         genreCounts[genre] = (genreCounts[genre] ?? 0) + 1;
       }
+
       // Convert to list and sort by count
-      _genreData = genreCounts.entries
+      final newGenreData = genreCounts.entries
           .map((e) => {'genre': e.key, 'count': e.value})
           .toList()
         ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
-      // Load borrowed and returned books data for the last 7 days
+      // Load borrowed and returned books data
       final DateTime now = DateTime.now();
       final DateTime sevenDaysAgo = now.subtract(const Duration(days: 7));
+
       final borrowedResponse = await Supabase.instance.client
           .from('borrowed_books')
           .select('borrow_date')
           .gte('borrow_date', sevenDaysAgo.toIso8601String());
+
+      if (!mounted) return; // Check mounted after async operation
+
       final returnedResponse = await Supabase.instance.client
           .from('borrowed_books')
           .select('return_date')
@@ -206,27 +224,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .not('return_date', 'is', null)
           .gte('return_date', sevenDaysAgo.toIso8601String());
 
+      if (!mounted) return; // Check mounted after async operation
+
       // Process borrowed books data
-      _borrowedData = {};
+      final Map<DateTime, int> newBorrowedData = {};
       for (final book in borrowedResponse) {
         if (book['borrow_date'] != null) {
           final date = DateTime.parse(book['borrow_date']).dateOnly;
-          _borrowedData[date] = (_borrowedData[date] ?? 0) + 1;
+          newBorrowedData[date] = (newBorrowedData[date] ?? 0) + 1;
         }
       }
 
       // Process returned books data
-      _returnedData = {};
+      final Map<DateTime, int> newReturnedData = {};
       for (final book in returnedResponse) {
         if (book['return_date'] != null) {
           final date = DateTime.parse(book['return_date']).dateOnly;
-          _returnedData[date] = (_returnedData[date] ?? 0) + 1;
+          newReturnedData[date] = (newReturnedData[date] ?? 0) + 1;
         }
       }
 
-      setState(() => _isLoading = false);
+      if (!mounted) return; // Final mounted check before setState
+      setState(() {
+        _genreData = newGenreData;
+        _borrowedData = newBorrowedData;
+        _returnedData = newReturnedData;
+        _isLoading = false;
+      });
     } catch (e) {
       print('Error loading dashboard data: $e');
+      if (!mounted) return; // Check mounted before error setState
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to load dashboard data. Please try again.';

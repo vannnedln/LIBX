@@ -61,7 +61,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                   author,
                   genre,
                   year,
-                  cover_url
+                  image_url
                 ),
                 profiles:user_id (
                   full_name,
@@ -87,7 +87,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                 author,
                 genre,
                 year,
-                cover_url
+                image_url
               ),
               profiles:user_id (
                 full_name,
@@ -126,7 +126,7 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                 author,
                 genre,
                 year,
-                cover_url
+                image_url
               ),
               profiles:user_id (
                 full_name,
@@ -490,102 +490,133 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
         ? (book?['borrow_id'] ?? book?['borrowed_books']?['id'])
         : book?['id'];
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Dismissible(
-        key: book != null ? Key(book['id'].toString()) : UniqueKey(),
-        direction: isPending
-            ? DismissDirection.horizontal
-            : (_selectedStatus == 'borrowed'
-                ? DismissDirection.endToStart
-                : DismissDirection.none),
-        confirmDismiss: (direction) async {
-          if (book != null) {
-            if (isPending) {
-              // For pending requests, handle approve/reject
-              if (direction == DismissDirection.endToStart) {
-                // Reject request
-                final requestType = isReturnRequest ? 'return' : 'borrow';
-                // For return requests, allow admin notes
-                if (isReturnRequest) {
-                  final TextEditingController notesController =
-                      TextEditingController();
-                  final result = await showDialog<Map<String, dynamic>>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text('Reject ${requestType.capitalize()} Request'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                              'Are you sure you want to reject this ${requestType} request?'),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: notesController,
-                            decoration: const InputDecoration(
-                              labelText: 'Admin Notes (Optional)',
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLines: 3,
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, {'confirmed': false}),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, {
-                            'confirmed': true,
-                            'notes': notesController.text,
-                          }),
-                          child: const Text('Reject'),
-                        ),
-                      ],
-                    ),
-                  );
+    Widget cardContent = Container(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          // Book Cover Image
+          Container(
+            width: 60,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              image: bookData?['image_url'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(bookData['image_url']),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+              color: Colors.grey[200],
+            ),
+            child: bookData?['image_url'] == null
+                ? const Icon(Icons.book, size: 30, color: Colors.grey)
+                : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bookData?['title'] ?? 'Book Title',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'By ${bookData?['author'] ?? 'Unknown Author'}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
 
-                  if (result != null && result['confirmed'] == true) {
-                    _adminNotes = result['notes'];
-                    return true;
-                  }
-                  return false;
-                } else {
-                  // Original dialog for borrow requests
-                  return await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text('Reject ${requestType.capitalize()} Request'),
-                      content: Text(
-                          'Are you sure you want to reject this ${requestType} request?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Reject'),
-                        ),
-                      ],
+                const SizedBox(height: 4),
+                Text(
+                  'Borrowed by: ${userData?['full_name'] ?? 'User Name'}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isBorrowRequest
+                        ? Colors.orange.withOpacity(0.1)
+                        : isReturnRequest
+                            ? Colors.blue.withOpacity(0.1)
+                            : secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isBorrowRequest
+                        ? 'Borrow Request'
+                        : isReturnRequest
+                            ? 'Return Request'
+                            : (book != null
+                                ? _getDaysLeft(book['due_date'])
+                                : '7 days left'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isBorrowRequest
+                          ? Colors.orange
+                          : isReturnRequest
+                              ? Colors.blue
+                              : secondary,
+                      fontWeight: FontWeight.w500,
                     ),
-                  );
-                }
-              } else if (direction == DismissDirection.startToEnd) {
-                // Similar changes for approval dialog
-                final requestType = isReturnRequest ? 'return' : 'borrow';
+                  ),
+                ),
+
+                // Add request date for return requests
+                if (isReturnRequest && book != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Requested: ${book['request_date'] != null ? _formatDate(book['request_date']) : 'Unknown date'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Only wrap with Dismissible if it's not the 'borrowed' status
+    if (_selectedStatus != 'borrowed' && isPending) {
+      return Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Dismissible(
+          key: book != null ? Key(book['id'].toString()) : UniqueKey(),
+          direction: DismissDirection.horizontal,
+          confirmDismiss: (direction) async {
+            if (book != null) {
+              if (direction == DismissDirection.startToEnd) {
+                // Cancel request (left to right)
                 return await showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: Text('Approve ${requestType.capitalize()} Request'),
-                    content: Text('Approve this ${requestType} request?'),
+                    title: const Text('Reject Borrow Request'), // Updated title
+                    content: const Text(
+                        'Are you sure you want to reject this borrow request?'), // Updated content
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -593,183 +624,81 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Approve'),
+                        child: const Text('Reject'), // Updated button text
+                      ),
+                    ],
+                  ),
+                );
+              } else if (direction == DismissDirection.endToStart) {
+                // Accept request (right to left)
+                return await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Accept Borrow Request'),
+                    content: const Text(
+                        'Are you sure you want to accept this borrow request?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Accept'),
                       ),
                     ],
                   ),
                 );
               }
-            } else if (_selectedStatus == 'borrowed') {
-              // For borrowed books, handle return
-              return await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Confirm Return'),
-                  content: const Text('Mark this book as returned?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Return'),
-                    ),
-                  ],
-                ),
-              );
             }
-          }
-          return false;
-        },
-        onDismissed: (direction) {
-          if (book != null) {
-            if (isPending) {
-              if (direction == DismissDirection.endToStart) {
-                if (isReturnRequest) {
+            return false;
+          },
+          onDismissed: (direction) {
+            if (book != null) {
+              if (isReturnRequest) {
+                if (direction == DismissDirection.startToEnd) {
+                  // Reject return request
                   _rejectReturnRequest(book['id']);
-                } else {
-                  _rejectBorrowRequest(book['id']);
+                } else if (direction == DismissDirection.endToStart) {
+                  // Accept return request
+                  _approveReturnRequest(book['id'], book['borrowed_books']['id']);
                 }
-              } else if (direction == DismissDirection.startToEnd) {
-                if (isReturnRequest) {
-                  _approveReturnRequest(book['id'], borrowId);
-                } else {
+              } else {
+                if (direction == DismissDirection.startToEnd) {
+                  // Reject borrow request
+                  _rejectBorrowRequest(book['id']);
+                } else if (direction == DismissDirection.endToStart) {
+                  // Accept borrow request
                   _approveBorrowRequest(book['id']);
                 }
               }
-            } else if (_selectedStatus == 'borrowed') {
-              _markAsReturned(book['book_id'], book['user_id']);
             }
-          }
-        },
-        background: isPending
-            ? Container(
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.only(left: 20.0),
-                color: Colors.green,
-                child: const Icon(Icons.check, color: Colors.white),
-              )
-            : Container(),
-        secondaryBackground: isPending
-            ? Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20.0),
-                color: Colors.red,
-                child: const Icon(Icons.close, color: Colors.white),
-              )
-            : Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20.0),
-                color: Colors.green,
-                child: const Icon(Icons.check, color: Colors.white),
-              ),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Book Cover Image
-              Container(
-                width: 60,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: bookData?['cover_url'] != null
-                      ? DecorationImage(
-                          image: NetworkImage(bookData['cover_url']),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                  color: Colors.grey[200],
-                ),
-                child: bookData?['cover_url'] == null
-                    ? const Icon(Icons.book, size: 30, color: Colors.grey)
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bookData?['title'] ?? 'Book Title',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'By ${bookData?['author'] ?? 'Unknown Author'}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-                    Text(
-                      'Borrowed by: ${userData?['full_name'] ?? 'User Name'}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isBorrowRequest
-                            ? Colors.orange.withOpacity(0.1)
-                            : isReturnRequest
-                                ? Colors.blue.withOpacity(0.1)
-                                : secondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        isBorrowRequest
-                            ? 'Borrow Request'
-                            : isReturnRequest
-                                ? 'Return Request'
-                                : (book != null
-                                    ? _getDaysLeft(book['due_date'])
-                                    : '7 days left'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isBorrowRequest
-                              ? Colors.orange
-                              : isReturnRequest
-                                  ? Colors.blue
-                                  : secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-
-                    // Add request date for return requests
-                    if (isReturnRequest && book != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Requested: ${book['request_date'] != null ? _formatDate(book['request_date']) : 'Unknown date'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+          },
+          background: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.only(left: 20.0),
+            color: Colors.red,
+            child: const Icon(Icons.close, color: Colors.white),
           ),
+          secondaryBackground: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20.0),
+            color: Colors.green,
+            child: const Icon(Icons.check, color: Colors.white),
+          ),
+          child: cardContent,
         ),
+      );
+    }
+
+    // Return simple Card for 'borrowed' status
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
       ),
+      child: cardContent,
     );
   }
 
@@ -856,6 +785,17 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
 
   Future<void> _rejectReturnRequest(int requestId) async {
     try {
+      final request = await Supabase.instance.client
+          .from('return_requests')
+          .select('borrowed_books (id)')
+          .eq('id', requestId)
+          .single();
+
+      // Update the borrowed book status back to borrowed
+      await Supabase.instance.client.from('borrowed_books').update({
+        'status': 'borrowed',
+      }).eq('id', request['borrowed_books']['id']);
+
       // Update the return request status to rejected
       await Supabase.instance.client.from('return_requests').update({
         'status': 'rejected',
@@ -930,26 +870,28 @@ class _BorrowedBooksPageState extends State<BorrowedBooksPage> {
 
   Future<void> _rejectBorrowRequest(int borrowId) async {
     try {
-      // Update borrow request status to rejected
+      // Update borrow request status to cancelled
       await Supabase.instance.client.from('borrowed_books').update({
-        'status': 'rejected',
+        'status': 'cancelled', // Changed from 'rejected' to 'cancelled'
+        'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', borrowId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Borrow request rejected'),
+          content: Text('Borrow request cancelled'), // Updated message
           backgroundColor: Colors.orange,
         ),
       );
 
       _loadBorrowedBooks();
     } catch (e) {
-      print('Error rejecting borrow request: $e');
+      print('Error cancelling borrow request: $e'); // Updated error message
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error rejecting request: $e'),
+          content:
+              Text('Error cancelling request: $e'), // Updated error message
           backgroundColor: Colors.red,
         ),
       );
