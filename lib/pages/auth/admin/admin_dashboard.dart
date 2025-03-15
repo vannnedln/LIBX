@@ -44,7 +44,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       final response = await Supabase.instance.client
           .from('profiles')
-          .select()
+          .select('avatar_url, full_name')
           .eq('id', userId)
           .single();
 
@@ -52,7 +52,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (response != null) {
         setState(() {
           _userAvatarUrl = response['avatar_url'];
-          _firstName = response['first_name'] ?? 'Admin';
+          _firstName = response['full_name'] ?? 'Admin';
         });
       }
     } catch (error) {
